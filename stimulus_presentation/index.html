@@ -192,6 +192,16 @@
             </label>
         </div>
         
+        <h2>EEG Integration</h2>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="enable-lsl"> Enable LSL Markers
+            </label>
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 4px;">
+                Requires lsl_bridge.py running
+            </span>
+        </div>
+        
         <button id="start-btn">START EXPERIMENT</button>
         <button id="toggle-log-btn" style="background: #2a2a5a; border-color: #3a3a7a;">Toggle Event Log</button>
         
@@ -206,7 +216,8 @@
     <!-- Status Overlay -->
     <div id="status-overlay">
         Trial: <span id="trial-counter">0/0</span> | 
-        Time: <span id="elapsed-time">0.00</span>s
+        Time: <span id="elapsed-time">0.00</span>s |
+        <span id="lsl-status" style="color: #666;">LSL: --</span>
     </div>
     
     <!-- Event Log -->
@@ -327,10 +338,8 @@
             // Update visual log
             this.updateVisualLog(entry);
             
-            // INTEGRATION POINT: Send to external systems
-            // this.sendToLSL(entry);      // Lab Streaming Layer
-            // this.sendToWebSocket(entry); // WebSocket bridge
-            // this.sendToParallelPort(entry); // Hardware trigger
+            // Send to LSL if connected
+            this.sendToLSL(entry);
             
             return entry;
         },
@@ -389,41 +398,146 @@
         },
         
         // --------------------------------------------------------
-        // INTEGRATION STUBS
-        // Uncomment and implement for your EEG system
+        // LSL WEBSOCKET INTEGRATION
         // --------------------------------------------------------
         
-        /*
+        lslSocket: null,
+        lslConnected: false,
+        lslEnabled: false,
+        
+        /**
+         * Connect to the LSL bridge via WebSocket
+         * @param {string} url - WebSocket URL (default: ws://localhost:8765)
+         * @returns {Promise<boolean>} - True if connected successfully
+         */
+        async connectLSL(url = 'ws://localhost:8765') {
+            return new Promise((resolve) => {
+                console.log(`[LSL] Connecting to ${url}...`);
+                this.updateLSLStatus('connecting');
+                
+                try {
+                    this.lslSocket = new WebSocket(url);
+                    
+                    this.lslSocket.onopen = () => {
+                        console.log('[LSL] Connected to bridge');
+                        this.lslConnected = true;
+                        this.lslEnabled = true;
+                        this.updateLSLStatus('connected');
+                        resolve(true);
+                    };
+                    
+                    this.lslSocket.onclose = (e) => {
+                        console.log(`[LSL] Disconnected (code: ${e.code})`);
+                        this.lslConnected = false;
+                        this.updateLSLStatus('disconnected');
+                    };
+                    
+                    this.lslSocket.onerror = (e) => {
+                        console.error('[LSL] Connection error:', e);
+                        this.lslConnected = false;
+                        this.updateLSLStatus('error');
+                        resolve(false);
+                    };
+                    
+                    this.lslSocket.onmessage = (e) => {
+                        // Handle acknowledgments from bridge
+                        try {
+                            const response = JSON.parse(e.data);
+                            if (response.lsl_timestamp) {
+                                // Update status with marker count periodically
+                                if (response.marker_count % 10 === 0) {
+                                    this.updateLSLStatus('connected', response.marker_count);
+                                }
+                            }
+                        } catch (err) {
+                            // Ignore parse errors
+                        }
+                    };
+                    
+                    // Timeout after 3 seconds
+                    setTimeout(() => {
+                        if (!this.lslConnected) {
+                            console.warn('[LSL] Connection timeout');
+                            this.updateLSLStatus('timeout');
+                            if (this.lslSocket) {
+                                this.lslSocket.close();
+                            }
+                            resolve(false);
+                        }
+                    }, 3000);
+                    
+                } catch (e) {
+                    console.error('[LSL] Failed to create WebSocket:', e);
+                    this.updateLSLStatus('error');
+                    resolve(false);
+                }
+            });
+        },
+        
+        /**
+         * Update LSL status display
+         */
+        updateLSLStatus(status, markerCount = null) {
+            const el = document.getElementById('lsl-status');
+            if (!el) return;
+            
+            switch (status) {
+                case 'connecting':
+                    el.textContent = 'LSL: Connecting...';
+                    el.style.color = '#ffaa00';
+                    break;
+                case 'connected':
+                    el.textContent = markerCount ? `LSL: ✓ (${markerCount})` : 'LSL: ✓ Connected';
+                    el.style.color = '#00ff00';
+                    break;
+                case 'disconnected':
+                    el.textContent = 'LSL: Disconnected';
+                    el.style.color = '#ff6600';
+                    break;
+                case 'error':
+                case 'timeout':
+                    el.textContent = 'LSL: ✗ Failed';
+                    el.style.color = '#ff0000';
+                    break;
+                default:
+                    el.textContent = 'LSL: --';
+                    el.style.color = '#666666';
+            }
+        },
+        
+        /**
+         * Disconnect from LSL bridge
+         */
+        disconnectLSL() {
+            if (this.lslSocket) {
+                this.lslSocket.close();
+                this.lslSocket = null;
+            }
+            this.lslConnected = false;
+            this.lslEnabled = false;
+            console.log('[LSL] Disconnected');
+        },
+        
+        /**
+         * Send event to LSL bridge
+         * @param {object} entry - Event entry to send
+         */
         sendToLSL(entry) {
-            // Lab Streaming Layer integration
-            // Requires LSL WebSocket bridge running locally
-            if (window.lslOutlet) {
-                window.lslOutlet.push_sample([entry.eventType, entry.absoluteTime]);
+            if (!this.lslEnabled || !this.lslConnected || !this.lslSocket) {
+                return;
             }
-        },
-        
-        sendToWebSocket(entry) {
-            // Generic WebSocket bridge
-            if (window.eegSocket && window.eegSocket.readyState === WebSocket.OPEN) {
-                window.eegSocket.send(JSON.stringify(entry));
+            
+            if (this.lslSocket.readyState !== WebSocket.OPEN) {
+                console.warn('[LSL] Socket not open, skipping marker');
+                return;
             }
-        },
-        
-        sendToParallelPort(entry) {
-            // Parallel port trigger via local bridge
-            // Encode event type as trigger code
-            const triggerCodes = {
-                'STIM_ONSET': 1,
-                'STIM_OFFSET': 2,
-                'COL_R': 10, 'COL_G': 11, 'COL_B': 12,
-                'COL_K': 13, 'COL_W': 14,
-                'SHP_SPH': 20, 'SHP_CUB': 21, 
-                'SHP_PYR': 22, 'SHP_ICO': 23
-            };
-            const code = triggerCodes[entry.stimulusCode] || 0;
-            // Send via your parallel port bridge
+            
+            try {
+                this.lslSocket.send(JSON.stringify(entry));
+            } catch (e) {
+                console.error('[LSL] Failed to send marker:', e);
+            }
         }
-        */
     };
 
     // ============================================================
@@ -744,6 +858,7 @@
             this.config.repetitions = parseInt(document.getElementById('repetitions').value);
             this.config.rotationSpeed = parseFloat(document.getElementById('rotation-speed').value);
             this.config.enableVR = document.getElementById('enable-vr').checked;
+            this.config.enableLSL = document.getElementById('enable-lsl').checked;
             
             // Update global config for tracking dots
             Config.scene.showTrackingDots = document.getElementById('tracking-dots').checked;
@@ -762,6 +877,24 @@
             // Initialize WebXR if enabled
             if (this.config.enableVR) {
                 await this.initWebXR();
+            }
+            
+            // Connect to LSL if enabled
+            if (this.config.enableLSL) {
+                const connected = await EventLogger.connectLSL();
+                if (!connected) {
+                    const proceed = confirm(
+                        'Could not connect to LSL bridge.\n\n' +
+                        'Make sure lsl_bridge.py is running:\n' +
+                        '  python bridges/lsl_bridge.py\n\n' +
+                        'Continue without LSL markers?'
+                    );
+                    if (!proceed) {
+                        this.cleanup();
+                        document.getElementById('control-panel').classList.remove('hidden');
+                        return;
+                    }
+                }
             }
             
             // Build trial queue
@@ -1113,6 +1246,9 @@
             this.trialQueue = [];
             this.stimulusOnsetTime = null;
             this.lastFrameTime = null;
+            
+            // Disconnect LSL
+            EventLogger.disconnectLSL();
             
             // Clear event log display
             document.getElementById('log-entries').innerHTML = '';
