@@ -274,32 +274,81 @@ class LSLBridge:
 # Test Mode
 # =============================================================================
 
-async def test_mode():
-    """Send test markers to verify LSL is working."""
+async def test_mode(duration=30):
+    """Send test markers for specified duration to verify LSL is working."""
     print("\n" + "="*60)
-    print("TEST MODE - Sending test markers")
+    print(f"TEST MODE - {duration} second simulated experiment")
     print("Open LabRecorder or another LSL client to verify reception")
     print("="*60 + "\n")
     
     bridge = LSLBridge()
     
-    test_events = [
-        (100, 0, 'EXPERIMENT_START'),
-        (1, 1, 'STIM_ONSET (trial 1)'),
-        (10, 1, 'RED'),
-        (2, 1, 'STIM_OFFSET'),
-        (1, 2, 'STIM_ONSET (trial 2)'),
-        (20, 2, 'SPHERE'),
-        (2, 2, 'STIM_OFFSET'),
-        (101, 0, 'EXPERIMENT_END'),
+    # Timing parameters (matching default experiment settings)
+    STIM_DURATION = 2.0      # seconds
+    ISI_DURATION = 1.0       # seconds
+    TOTAL_DURATION = float(duration)
+    
+    # Stimuli to cycle through
+    stimuli = [
+        (10, 'RED'),
+        (11, 'GREEN'),
+        (12, 'BLUE'),
+        (20, 'SPHERE'),
+        (21, 'CUBE'),
+        (22, 'PYRAMID'),
     ]
     
-    for code, trial, description in test_events:
-        lsl_time = bridge.push_marker(code, trial, 0)
-        print(f"[TEST] Sent: {description:25s} code={code:3d} lsl_t={lsl_time:.3f}")
-        await asyncio.sleep(1.0)
+    print(f"Stimulus duration: {STIM_DURATION}s")
+    print(f"Inter-stimulus interval: {ISI_DURATION}s")
+    print(f"Total duration: {TOTAL_DURATION}s")
+    print("-" * 60)
     
-    print("\n[TEST] Complete! Check your LSL recording software.")
+    # Send experiment start
+    start_time = asyncio.get_event_loop().time()
+    lsl_time = bridge.push_marker(100, 0, 0)
+    print(f"[{0:5.1f}s] EXPERIMENT_START      code=100  lsl_t={lsl_time:.3f}")
+    
+    trial = 0
+    stim_index = 0
+    elapsed = 0
+    
+    while elapsed < TOTAL_DURATION:
+        trial += 1
+        stim_code, stim_name = stimuli[stim_index % len(stimuli)]
+        stim_index += 1
+        
+        # ISI
+        await asyncio.sleep(ISI_DURATION)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        
+        if elapsed >= TOTAL_DURATION:
+            break
+        
+        # Stimulus onset
+        browser_time = elapsed * 1000  # Convert to ms
+        lsl_time = bridge.push_marker(1, trial, browser_time)  # STIM_ONSET
+        bridge.push_marker(stim_code, trial, browser_time)      # Stimulus type
+        print(f"[{elapsed:5.1f}s] STIM_ONSET  trial={trial:2d}  {stim_name:10s}  code={stim_code:3d}  lsl_t={lsl_time:.3f}")
+        
+        # Stimulus duration
+        await asyncio.sleep(STIM_DURATION)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        
+        # Stimulus offset
+        browser_time = elapsed * 1000
+        lsl_time = bridge.push_marker(2, trial, browser_time)  # STIM_OFFSET
+        print(f"[{elapsed:5.1f}s] STIM_OFFSET trial={trial:2d}  {stim_name:10s}  code=  2  lsl_t={lsl_time:.3f}")
+    
+    # Send experiment end
+    elapsed = asyncio.get_event_loop().time() - start_time
+    lsl_time = bridge.push_marker(101, 0, elapsed * 1000)
+    print(f"[{elapsed:5.1f}s] EXPERIMENT_END        code=101  lsl_t={lsl_time:.3f}")
+    
+    print("-" * 60)
+    print(f"\n[TEST] Complete!")
+    print(f"[TEST] Total markers sent: {bridge.marker_count}")
+    print(f"[TEST] Total trials: {trial}")
+    print(f"[TEST] Actual duration: {elapsed:.1f}s")
 
 
 # =============================================================================
@@ -338,6 +387,8 @@ def main():
     )
     parser.add_argument('--test', action='store_true',
                         help='Run in test mode (send test markers)')
+    parser.add_argument('--duration', type=int, default=30,
+                        help='Test mode duration in seconds (default: 30)')
     parser.add_argument('--port', type=int, default=PORT,
                         help=f'WebSocket port (default: {PORT})')
     args = parser.parse_args()
@@ -345,7 +396,7 @@ def main():
     PORT = args.port
     
     if args.test:
-        asyncio.run(test_mode())
+        asyncio.run(test_mode(args.duration))
     else:
         print_banner()
         bridge = LSLBridge()
