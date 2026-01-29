@@ -3,12 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EEG Stimulus Platform</title>
+    <title>EEG Stimulus Platform - HTTP/LSL Version</title>
     <style>
-        /* ============================================================
-           MINIMAL RESEARCH UI STYLES
-           Keep visual clutter to absolute minimum
-           ============================================================ */
         * {
             margin: 0;
             padding: 0;
@@ -17,11 +13,10 @@
         
         body {
             font-family: 'Courier New', monospace;
-            background: #808080; /* Neutral gray */
+            background: #808080;
             overflow: hidden;
         }
         
-        /* Control panel - only visible before experiment starts */
         #control-panel {
             position: fixed;
             top: 50%;
@@ -32,7 +27,9 @@
             padding: 30px;
             border: 1px solid #404040;
             z-index: 1000;
-            min-width: 400px;
+            min-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         
         #control-panel h1 {
@@ -43,19 +40,19 @@
         }
         
         #control-panel h2 {
-            font-size: 14px;
+            font-size: 13px;
             margin: 15px 0 10px 0;
             color: #a0a0a0;
         }
         
         .control-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         
         label {
             display: block;
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 11px;
+            margin-bottom: 4px;
             color: #808080;
         }
         
@@ -66,18 +63,22 @@
             border: 1px solid #404040;
             color: #e0e0e0;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 8px;
         }
         
         button {
             width: 100%;
             padding: 12px;
-            margin-top: 10px;
+            margin-top: 8px;
             background: #2a5a2a;
             border: 1px solid #3a7a3a;
             color: #e0e0e0;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
         }
         
@@ -90,7 +91,15 @@
             cursor: not-allowed;
         }
         
-        /* Canvas container */
+        button.secondary {
+            background: #2a2a5a;
+            border-color: #3a3a7a;
+        }
+        
+        button.secondary:hover {
+            background: #3a3a7a;
+        }
+        
         #canvas-container {
             position: fixed;
             top: 0;
@@ -99,32 +108,49 @@
             height: 100%;
         }
         
-        /* Status overlay - minimal info during experiment */
-        #status-overlay {
+        #status-bar {
             position: fixed;
-            bottom: 10px;
-            left: 10px;
-            font-size: 11px;
-            color: #606060;
-            z-index: 100;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #e0e0e0;
+            padding: 10px 20px;
+            font-size: 12px;
             display: none;
+            z-index: 100;
         }
         
-        /* Hidden during experiment */
-        .hidden {
-            display: none !important;
+        #status-bar .info {
+            display: inline-block;
+            margin-right: 30px;
         }
         
-        /* Event log panel */
+        #status-bar .progress-bar {
+            height: 4px;
+            background: #333;
+            margin-top: 8px;
+        }
+        
+        #status-bar .progress-fill {
+            height: 100%;
+            background: #4a8a4a;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .lsl-connected { color: #00ff00; }
+        .lsl-error { color: #ff0000; }
+        
         #event-log {
             position: fixed;
             right: 0;
             top: 0;
-            width: 350px;
+            width: 320px;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             color: #00ff00;
-            font-size: 11px;
+            font-size: 10px;
             padding: 10px;
             overflow-y: auto;
             z-index: 500;
@@ -137,30 +163,98 @@
         
         .log-entry {
             margin-bottom: 2px;
-            font-family: 'Courier New', monospace;
+            white-space: nowrap;
         }
         
         .log-onset { color: #00ff00; }
-        .log-offset { color: #ff6600; }
+        .log-offset { color: #ff9900; }
         .log-system { color: #666666; }
+        
+        .hidden { display: none !important; }
+        
+        .info-text {
+            font-size: 10px;
+            color: #606060;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+        
+        .connection-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .status-ok {
+            background: #2a4a2a;
+            color: #00ff00;
+        }
+        
+        .status-error {
+            background: #4a2a2a;
+            color: #ff6666;
+        }
+        
+        #vr-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background: #2a2a5a;
+            border: 1px solid #4a4a8a;
+            color: #e0e0e0;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #vr-button:hover {
+            background: #3a3a7a;
+        }
+        
+        #vr-button:disabled {
+            background: #404040;
+            cursor: not-allowed;
+        }
+        
+        #vr-status {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.8);
+            color: #ffcc00;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 1000;
+            display: none;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
-    <!-- Control Panel -->
     <div id="control-panel">
-        <h1>EEG STIMULUS PLATFORM v1.0</h1>
+        <h1>EEG STIMULUS PLATFORM v2.1</h1>
+        <div id="connection-status" class="connection-status status-error">
+            ⚠ Not connected to server
+        </div>
         
-        <h2>Experiment Mode</h2>
+        <h2>Stimulus Selection</h2>
         <div class="control-group">
             <label>Stimulus Type</label>
             <select id="stimulus-type">
-                <option value="color">Color Baseline</option>
-                <option value="shape">3D Primitives</option>
-                <option value="combined">Combined Protocol</option>
+                <option value="color">Color Baseline Only</option>
+                <option value="shape">3D Primitives Only</option>
+                <option value="combined" selected>Combined Protocol</option>
             </select>
         </div>
         
-        <h2>Timing Configuration</h2>
+        <h2>Timing Parameters</h2>
         <div class="control-group">
             <label>Stimulus Duration (ms)</label>
             <input type="number" id="stim-duration" value="3000" min="500" max="30000" step="100">
@@ -174,80 +268,61 @@
             <input type="number" id="repetitions" value="3" min="1" max="20">
         </div>
         
-        <h2>3D Shape Options</h2>
+        <h2>3D Shape Settings</h2>
         <div class="control-group">
             <label>Rotation Speed (rad/s)</label>
             <input type="number" id="rotation-speed" value="0.5" min="0" max="2" step="0.1">
         </div>
         <div class="control-group">
-            <label>
-                <input type="checkbox" id="tracking-dots"> Show Tracking Dots (for pilot testing)
-            </label>
+            <label><input type="checkbox" id="tracking-dots"> Show Tracking Dots</label>
         </div>
         
-        <h2>WebXR</h2>
+        <h2>Options</h2>
         <div class="control-group">
-            <label>
-                <input type="checkbox" id="enable-vr"> Enable VR Mode
-            </label>
+            <label><input type="checkbox" id="randomize"> Randomize Trial Order</label>
         </div>
-        
-        <h2>EEG Integration</h2>
         <div class="control-group">
-            <label>
-                <input type="checkbox" id="enable-lsl"> Enable LSL Markers
-            </label>
-            <span style="font-size: 10px; color: #606060; display: block; margin-top: 4px;">
-                Requires lsl_bridge.py running
-            </span>
+            <label><input type="checkbox" id="enable-vr"> Enable WebXR (VR Mode)</label>
         </div>
         
         <button id="start-btn">START EXPERIMENT</button>
-        <button id="toggle-log-btn" style="background: #2a2a5a; border-color: #3a3a7a;">Toggle Event Log</button>
+        <button id="toggle-log" class="secondary">Toggle Event Log</button>
         
-        <p style="margin-top: 15px; font-size: 11px; color: #606060;">
-            Controls: [SPACE] Pause/Resume | [ESC] Abort | [N] Next Stimulus
+        <p class="info-text">
+            <strong>Keyboard Controls:</strong><br>
+            [SPACE] Pause/Resume | [ESC] Abort | [N] Skip Trial
         </p>
     </div>
     
-    <!-- Canvas Container -->
     <div id="canvas-container"></div>
     
-    <!-- Status Overlay -->
-    <div id="status-overlay">
-        Trial: <span id="trial-counter">0/0</span> | 
-        Time: <span id="elapsed-time">0.00</span>s |
-        <span id="lsl-status" style="color: #666;">LSL: --</span>
+    <div id="status-bar">
+        <div class="info">Trial: <span id="trial-num">0</span>/<span id="trial-total">0</span></div>
+        <div class="info">Elapsed: <span id="elapsed">0.0</span>s</div>
+        <div class="info">Status: <span id="status-text">Running</span></div>
+        <div class="info lsl-connected">LSL: <span id="marker-count">0</span> markers</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
     </div>
     
-    <!-- Event Log -->
     <div id="event-log">
-        <div style="border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
-            EVENT LOG (for EEG marker integration)
+        <div style="border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; color: #888;">
+            EVENT LOG
         </div>
         <div id="log-entries"></div>
     </div>
     
-    <!-- Three.js -->
+    <button id="vr-button">ENTER VR</button>
+    <div id="vr-status"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-    /* ============================================================
-       EEG STIMULUS PLATFORM
-       
-       A research-grade visual stimulus generator for EEG studies.
-       Built with Three.js for precise timing and WebXR support.
-       
-       Author: Research Engineering
-       Version: 1.0
-       ============================================================ */
-
     // ============================================================
-    // CONFIGURATION MODULE
-    // Central configuration for all experiment parameters
+    // CONFIGURATION
     // ============================================================
     const Config = {
-        // Color stimuli - pure sRGB primaries
         colors: {
             RED:    { hex: 0xff0000, name: 'RED',   code: 'COL_R' },
             GREEN:  { hex: 0x00ff00, name: 'GREEN', code: 'COL_G' },
@@ -255,362 +330,193 @@
             BLACK:  { hex: 0x000000, name: 'BLACK', code: 'COL_K' },
             WHITE:  { hex: 0xffffff, name: 'WHITE', code: 'COL_W' }
         },
-        
-        // Shape stimuli
         shapes: {
             SPHERE:      { name: 'SPHERE',      code: 'SHP_SPH' },
             CUBE:        { name: 'CUBE',        code: 'SHP_CUB' },
             PYRAMID:     { name: 'PYRAMID',     code: 'SHP_PYR' },
             ICOSAHEDRON: { name: 'ICOSAHEDRON', code: 'SHP_ICO' }
         },
-        
-        // Neutral gray for ISI (inter-stimulus interval)
         neutralGray: 0x808080,
-        
-        // Default timing (can be overridden by UI)
-        defaults: {
-            stimulusDuration: 3000,  // ms
-            isiDuration: 1000,       // ms
-            repetitions: 3,
-            rotationSpeed: 0.5       // rad/s
-        },
-        
-        // 3D scene parameters
         scene: {
             cameraFOV: 50,
             cameraNear: 0.1,
             cameraFar: 1000,
             cameraZ: 5,
-            shapeScale: 1.35,           // ~10% smaller than original 1.5
-            shapeColor: 0xe0e0e0,       // Light gray
-            shapeBackground: 0x000000,  // Black background for shape stimuli
+            shapeScale: 1.35,
+            shapeColor: 0xe0e0e0,
+            shapeBackground: 0x000000,
             ambientIntensity: 0.4,
             directionalIntensity: 0.6,
-            showTrackingDots: false     // Optional rotation tracking markers
+            showTrackingDots: false
+        },
+        defaults: {
+            stimulusDuration: 3000,
+            isiDuration: 1000,
+            repetitions: 3,
+            rotationSpeed: 0.5
+        },
+        vr: {
+            // Distance in front of camera for head-locked stimuli
+            stimulusDistance: 2.5,
+            // Scale multiplier for VR (shapes may need to be larger)
+            scaleMultiplier: 1.0
         }
     };
 
     // ============================================================
-    // EVENT LOGGER MODULE
-    // Handles all timing events with precision timestamps
-    // Structured for easy EEG marker integration
+    // HTTP/LSL EVENT LOGGER
     // ============================================================
     const EventLogger = {
         entries: [],
         experimentStartTime: null,
+        serverConnected: false,
+        markerCount: 0,
         
-        /**
-         * Initialize logger at experiment start
-         */
-        init() {
+        async init() {
             this.entries = [];
             this.experimentStartTime = performance.now();
-            this.log('EXPERIMENT_START', { timestamp: Date.now() });
+            await this.log('EXPERIMENT_START', { timestamp: Date.now() });
         },
         
-        /**
-         * Log an event with precise timing
-         * @param {string} eventType - Event type identifier
-         * @param {object} data - Additional event data
-         */
-        log(eventType, data = {}) {
+        async log(eventType, data = {}) {
             const absoluteTime = performance.now();
             const relativeTime = this.experimentStartTime 
-                ? absoluteTime - this.experimentStartTime 
-                : 0;
+                ? absoluteTime - this.experimentStartTime : 0;
             
-            const entry = {
-                eventType,
-                absoluteTime,
-                relativeTime,
-                ...data
-            };
-            
+            const entry = { eventType, absoluteTime, relativeTime, ...data };
             this.entries.push(entry);
             
-            // Console output for debugging/external capture
             console.log(`[EEG_EVENT] ${eventType}`, {
                 absoluteMs: absoluteTime.toFixed(3),
                 relativeMs: relativeTime.toFixed(3),
                 ...data
             });
             
-            // Update visual log
             this.updateVisualLog(entry);
-            
-            // Send to LSL if connected
-            this.sendToLSL(entry);
+            await this.sendToServer(entry);
             
             return entry;
         },
         
-        /**
-         * Log stimulus onset
-         */
-        logOnset(stimulusType, stimulusCode, trialNumber) {
-            return this.log('STIM_ONSET', {
-                stimulusType,
-                stimulusCode,
-                trialNumber
+        async logOnset(stimulusType, stimulusCode, trialNumber) {
+            return await this.log('STIM_ONSET', { 
+                stimulusType, stimulusCode, trialNumber 
             });
         },
         
-        /**
-         * Log stimulus offset
-         */
-        logOffset(stimulusType, stimulusCode, trialNumber, duration) {
-            return this.log('STIM_OFFSET', {
-                stimulusType,
-                stimulusCode,
-                trialNumber,
-                actualDurationMs: duration.toFixed(3)
+        async logOffset(stimulusType, stimulusCode, trialNumber, duration) {
+            return await this.log('STIM_OFFSET', { 
+                stimulusType, stimulusCode, trialNumber, 
+                actualDurationMs: duration.toFixed(3) 
             });
         },
         
-        /**
-         * Update the visual event log panel
-         */
-        updateVisualLog(entry) {
-            const logContainer = document.getElementById('log-entries');
-            const div = document.createElement('div');
-            div.className = 'log-entry';
-            
-            if (entry.eventType.includes('ONSET')) {
-                div.classList.add('log-onset');
-            } else if (entry.eventType.includes('OFFSET')) {
-                div.classList.add('log-offset');
-            } else {
-                div.classList.add('log-system');
-            }
-            
-            const timeStr = entry.relativeTime.toFixed(1).padStart(8, ' ');
-            div.textContent = `[${timeStr}ms] ${entry.eventType} ${entry.stimulusCode || ''}`;
-            
-            logContainer.appendChild(div);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        },
-        
-        /**
-         * Export all logged events as JSON
-         */
-        export() {
-            return JSON.stringify(this.entries, null, 2);
-        },
-        
-        // --------------------------------------------------------
-        // LSL WEBSOCKET INTEGRATION
-        // --------------------------------------------------------
-        
-        lslSocket: null,
-        lslConnected: false,
-        lslEnabled: false,
-        
-        /**
-         * Connect to the LSL bridge via WebSocket
-         * @param {string} url - WebSocket URL (default: ws://localhost:8765)
-         * @returns {Promise<boolean>} - True if connected successfully
-         */
-        async connectLSL(url = 'ws://localhost:8765') {
-            return new Promise((resolve) => {
-                console.log(`[LSL] Connecting to ${url}...`);
-                this.updateLSLStatus('connecting');
-                
-                try {
-                    this.lslSocket = new WebSocket(url);
-                    
-                    this.lslSocket.onopen = () => {
-                        console.log('[LSL] Connected to bridge');
-                        this.lslConnected = true;
-                        this.lslEnabled = true;
-                        this.updateLSLStatus('connected');
-                        resolve(true);
-                    };
-                    
-                    this.lslSocket.onclose = (e) => {
-                        console.log(`[LSL] Disconnected (code: ${e.code})`);
-                        this.lslConnected = false;
-                        this.updateLSLStatus('disconnected');
-                    };
-                    
-                    this.lslSocket.onerror = (e) => {
-                        console.error('[LSL] Connection error:', e);
-                        this.lslConnected = false;
-                        this.updateLSLStatus('error');
-                        resolve(false);
-                    };
-                    
-                    this.lslSocket.onmessage = (e) => {
-                        // Handle acknowledgments from bridge
-                        try {
-                            const response = JSON.parse(e.data);
-                            if (response.lsl_timestamp) {
-                                // Update status with marker count periodically
-                                if (response.marker_count % 10 === 0) {
-                                    this.updateLSLStatus('connected', response.marker_count);
-                                }
-                            }
-                        } catch (err) {
-                            // Ignore parse errors
-                        }
-                    };
-                    
-                    // Timeout after 3 seconds
-                    setTimeout(() => {
-                        if (!this.lslConnected) {
-                            console.warn('[LSL] Connection timeout');
-                            this.updateLSLStatus('timeout');
-                            if (this.lslSocket) {
-                                this.lslSocket.close();
-                            }
-                            resolve(false);
-                        }
-                    }, 3000);
-                    
-                } catch (e) {
-                    console.error('[LSL] Failed to create WebSocket:', e);
-                    this.updateLSLStatus('error');
-                    resolve(false);
-                }
-            });
-        },
-        
-        /**
-         * Update LSL status display
-         */
-        updateLSLStatus(status, markerCount = null) {
-            const el = document.getElementById('lsl-status');
-            if (!el) return;
-            
-            switch (status) {
-                case 'connecting':
-                    el.textContent = 'LSL: Connecting...';
-                    el.style.color = '#ffaa00';
-                    break;
-                case 'connected':
-                    el.textContent = markerCount ? `LSL: ✓ (${markerCount})` : 'LSL: ✓ Connected';
-                    el.style.color = '#00ff00';
-                    break;
-                case 'disconnected':
-                    el.textContent = 'LSL: Disconnected';
-                    el.style.color = '#ff6600';
-                    break;
-                case 'error':
-                case 'timeout':
-                    el.textContent = 'LSL: ✗ Failed';
-                    el.style.color = '#ff0000';
-                    break;
-                default:
-                    el.textContent = 'LSL: --';
-                    el.style.color = '#666666';
-            }
-        },
-        
-        /**
-         * Disconnect from LSL bridge
-         */
-        disconnectLSL() {
-            if (this.lslSocket) {
-                this.lslSocket.close();
-                this.lslSocket = null;
-            }
-            this.lslConnected = false;
-            this.lslEnabled = false;
-            console.log('[LSL] Disconnected');
-        },
-        
-        /**
-         * Send event to LSL bridge
-         * @param {object} entry - Event entry to send
-         */
-        sendToLSL(entry) {
-            if (!this.lslEnabled || !this.lslConnected || !this.lslSocket) {
-                return;
-            }
-            
-            if (this.lslSocket.readyState !== WebSocket.OPEN) {
-                console.warn('[LSL] Socket not open, skipping marker');
+        async sendToServer(entry) {
+            if (!this.serverConnected) {
+                console.warn('[LSL] Server not connected, skipping marker');
                 return;
             }
             
             try {
-                this.lslSocket.send(JSON.stringify(entry));
-            } catch (e) {
-                console.error('[LSL] Failed to send marker:', e);
+                const response = await fetch('/event', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        eventType: entry.eventType,
+                        stimulusCode: entry.stimulusCode || '',
+                        trialNumber: entry.trialNumber || 0,
+                        relativeTime: entry.relativeTime
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.markerCount = data.marker_count;
+                    this.updateMarkerCount();
+                }
+            } catch (error) {
+                console.error('[LSL] Failed to send marker:', error);
             }
+        },
+        
+        async checkServerConnection() {
+            try {
+                const response = await fetch('/status');
+                if (response.ok) {
+                    this.serverConnected = true;
+                    this.updateConnectionStatus(true);
+                    const data = await response.json();
+                    this.markerCount = data.marker_count;
+                    return true;
+                }
+            } catch (error) {
+                this.serverConnected = false;
+                this.updateConnectionStatus(false);
+            }
+            return false;
+        },
+        
+        updateConnectionStatus(connected) {
+            const el = document.getElementById('connection-status');
+            if (connected) {
+                el.className = 'connection-status status-ok';
+                el.textContent = '✓ Connected to EEG server (LSL active)';
+            } else {
+                el.className = 'connection-status status-error';
+                el.textContent = '⚠ Not connected to server (run: python eeg_server_with_lsl.py)';
+            }
+        },
+        
+        updateMarkerCount() {
+            const el = document.getElementById('marker-count');
+            if (el) el.textContent = this.markerCount;
+        },
+        
+        updateVisualLog(entry) {
+            const container = document.getElementById('log-entries');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            
+            if (entry.eventType.includes('ONSET')) div.classList.add('log-onset');
+            else if (entry.eventType.includes('OFFSET')) div.classList.add('log-offset');
+            else div.classList.add('log-system');
+            
+            const time = entry.relativeTime.toFixed(1).padStart(8, ' ');
+            div.textContent = `[${time}ms] ${entry.eventType} ${entry.stimulusCode || ''}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        },
+        
+        exportJSON() {
+            return JSON.stringify(this.entries, null, 2);
         }
     };
 
     // ============================================================
-    // STIMULUS FACTORY MODULE
-    // Creates and manages visual stimuli
+    // STIMULUS FACTORY
     // ============================================================
     const StimulusFactory = {
-        /**
-         * Create a full-screen color stimulus
-         * Uses a plane that fills the entire view
-         */
-        createColorStimulus(colorConfig) {
-            // Disable Three.js color management for accurate sRGB
-            THREE.ColorManagement.enabled = false;
-            
-            const geometry = new THREE.PlaneGeometry(100, 100);
-            const material = new THREE.MeshBasicMaterial({
-                color: colorConfig.hex,
-                side: THREE.DoubleSide
-            });
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.z = -10; // Behind camera near plane
-            
-            mesh.userData = {
-                type: 'color',
-                config: colorConfig
-            };
-            
-            return mesh;
-        },
-        
-        /**
-         * Create a 3D primitive shape
-         */
-        createShapeStimulus(shapeType) {
+        createShapeStimulus(shapeType, options = {}) {
+            const scale = options.scale || Config.scene.shapeScale;
             let geometry;
             
             switch (shapeType) {
                 case 'SPHERE':
-                    geometry = new THREE.SphereGeometry(
-                        Config.scene.shapeScale, 
-                        32, 32  // Sufficient segments for smooth appearance
-                    );
+                    geometry = new THREE.SphereGeometry(scale, 32, 32);
                     break;
-                    
                 case 'CUBE':
-                    geometry = new THREE.BoxGeometry(
-                        Config.scene.shapeScale * 1.6,
-                        Config.scene.shapeScale * 1.6,
-                        Config.scene.shapeScale * 1.6
-                    );
+                    geometry = new THREE.BoxGeometry(scale * 1.6, scale * 1.6, scale * 1.6);
                     break;
-                    
                 case 'PYRAMID':
-                    // Tetrahedron as pyramid
-                    geometry = new THREE.TetrahedronGeometry(
-                        Config.scene.shapeScale * 1.4
-                    );
+                    geometry = new THREE.TetrahedronGeometry(scale * 1.4);
                     break;
-                    
                 case 'ICOSAHEDRON':
-                    geometry = new THREE.IcosahedronGeometry(
-                        Config.scene.shapeScale * 1.2
-                    );
+                    geometry = new THREE.IcosahedronGeometry(scale * 1.2);
                     break;
-                    
                 default:
-                    console.warn(`Unknown shape type: ${shapeType}`);
-                    geometry = new THREE.SphereGeometry(1, 32, 32);
+                    geometry = new THREE.SphereGeometry(scale, 32, 32);
             }
             
-            // Simple material - no textures
             const material = new THREE.MeshStandardMaterial({
                 color: Config.scene.shapeColor,
                 roughness: 0.7,
@@ -618,105 +524,72 @@
             });
             
             const mesh = new THREE.Mesh(geometry, material);
-            
             mesh.userData = {
                 type: 'shape',
                 config: Config.shapes[shapeType],
-                rotationAxis: 'y',  // Rotate around Y only
-                rotationSpeed: 0   // Set by experiment controller
+                rotationSpeed: options.rotationSpeed || 0
             };
             
             return mesh;
         },
         
-        /**
-         * Create basic lighting setup
-         * Minimal complexity - just ambient + one directional
-         */
         createLighting() {
-            const lights = [];
-            
-            // Ambient light for base illumination
-            const ambient = new THREE.AmbientLight(
-                0xffffff, 
-                Config.scene.ambientIntensity
-            );
-            lights.push(ambient);
-            
-            // Single directional light
-            const directional = new THREE.DirectionalLight(
-                0xffffff,
-                Config.scene.directionalIntensity
-            );
-            directional.position.set(5, 5, 5);
-            lights.push(directional);
-            
-            return lights;
+            const directionalLight = new THREE.DirectionalLight(0xffffff, Config.scene.directionalIntensity);
+            directionalLight.position.set(5, 5, 5);
+
+            return [
+                new THREE.AmbientLight(0xffffff, Config.scene.ambientIntensity),
+                directionalLight
+            ];
         }
     };
 
     // ============================================================
     // EXPERIMENT CONTROLLER
-    // Main experiment state machine and timing control
     // ============================================================
-    const ExperimentController = {
-        // State
-        isRunning: false,
-        isPaused: false,
-        currentTrialIndex: 0,
-        trialQueue: [],
-        
-        // Three.js objects
-        renderer: null,
-        scene: null,
-        camera: null,
-        currentStimulus: null,
-        vrButton: null,
-        
-        // Timing
-        stimulusOnsetTime: null,
-        lastFrameTime: null,
-        scheduledTimeout: null,
-        
-        // Configuration (from UI)
-        config: {
-            stimulusDuration: 3000,
-            isiDuration: 1000,
-            repetitions: 3,
-            rotationSpeed: 0.5,
-            enableVR: false,
-            stimulusType: 'color'
-        },
-        
-        /**
-         * Initialize Three.js scene and renderer
-         */
-        initScene() {
-            const container = document.getElementById('canvas-container');
+    class ExperimentController {
+        constructor() {
+            this.isRunning = false;
+            this.isPaused = false;
+            this.currentTrialIndex = 0;
+            this.trialQueue = [];
+            this.renderer = null;
+            this.scene = null;
+            this.camera = null;
+            this.currentStimulus = null;
+            this.stimulusOnsetTime = null;
+            this.lastFrameTime = null;
+            this.scheduledTimeout = null;
+            this.config = { ...Config.defaults };
             
-            // Remove any existing canvases (safety check)
+            // VR state
+            this.vrEnabled = false;
+            this.vrSupported = false;
+            this.xrSession = null;
+            this.xrReferenceSpace = null;
+            
+            // Container for head-locked VR stimuli
+            this.vrStimulusContainer = null;
+        }
+        
+        initScene(container) {
             while (container.firstChild) {
                 container.removeChild(container.firstChild);
             }
             
-            // Create renderer
-            this.renderer = new THREE.WebGLRenderer({
+            this.renderer = new THREE.WebGLRenderer({ 
                 antialias: true,
+                alpha: false,
                 powerPreference: 'high-performance'
             });
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             this.renderer.setPixelRatio(window.devicePixelRatio);
-            
-            // Disable automatic color space conversion for accurate colors
             this.renderer.outputEncoding = THREE.LinearEncoding;
-            
             container.appendChild(this.renderer.domElement);
             
-            // Create scene
             this.scene = new THREE.Scene();
             this.scene.background = new THREE.Color(Config.neutralGray);
             
-            // Create camera
             this.camera = new THREE.PerspectiveCamera(
                 Config.scene.cameraFOV,
                 window.innerWidth / window.innerHeight,
@@ -725,481 +598,463 @@
             );
             this.camera.position.z = Config.scene.cameraZ;
             
-            // Add lighting (needed for 3D shapes)
-            const lights = StimulusFactory.createLighting();
-            lights.forEach(light => this.scene.add(light));
+            // Create a container for VR head-locked stimuli
+            // This will be added to the camera so it moves with the head
+            this.vrStimulusContainer = new THREE.Group();
+            this.vrStimulusContainer.position.set(0, 0, -Config.vr.stimulusDistance);
             
-            // Set up event listeners (only once)
-            if (!this._listenersInitialized) {
-                this._resizeHandler = () => this.onWindowResize();
-                this._keyHandler = (e) => this.onKeyDown(e);
-                window.addEventListener('resize', this._resizeHandler);
-                window.addEventListener('keydown', this._keyHandler);
-                this._listenersInitialized = true;
-            }
+            StimulusFactory.createLighting().forEach(l => this.scene.add(l));
             
-            console.log('[INIT] Three.js scene initialized');
-        },
+            // Also add lights to the VR container for consistent lighting
+            const vrAmbient = new THREE.AmbientLight(0xffffff, Config.scene.ambientIntensity);
+            const vrDirectional = new THREE.DirectionalLight(0xffffff, Config.scene.directionalIntensity);
+            vrDirectional.position.set(2, 2, 2);
+            this.vrStimulusContainer.add(vrAmbient);
+            this.vrStimulusContainer.add(vrDirectional);
+            
+            window.addEventListener('resize', () => {
+                if (this.camera && this.renderer && !this.renderer.xr.isPresenting) {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+            });
+            
+            console.log('[Scene] Initialized');
+        }
         
-        /**
-         * Initialize WebXR if enabled
-         */
+        // ============================================================
+        // WEBXR VR SUPPORT - FIXED FOR META QUEST
+        // ============================================================
+        
         async initWebXR() {
-            if (!this.config.enableVR) return false;
+            const vrButton = document.getElementById('vr-button');
+            const vrStatus = document.getElementById('vr-status');
             
-            // Check WebXR support
+            // Check if WebXR is available
             if (!navigator.xr) {
-                console.warn('[WebXR] Not supported in this browser');
+                console.warn('[WebXR] Not available in this browser');
+                this.showVRStatus('WebXR not available');
                 return false;
             }
             
-            const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
-            if (!isSupported) {
-                console.warn('[WebXR] Immersive VR not supported');
+            try {
+                // Check for immersive-vr support
+                this.vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+                
+                if (!this.vrSupported) {
+                    console.warn('[WebXR] immersive-vr not supported');
+                    this.showVRStatus('VR not supported on this device');
+                    return false;
+                }
+                
+                // Enable XR on renderer
+                this.renderer.xr.enabled = true;
+                
+                // Set up the VR button
+                vrButton.style.display = 'block';
+                vrButton.textContent = 'ENTER VR';
+                vrButton.disabled = false;
+                
+                vrButton.onclick = () => this.toggleVR();
+                
+                this.vrEnabled = true;
+                console.log('[WebXR] VR support enabled');
+                this.showVRStatus('VR Ready - Click button to enter');
+                
+                return true;
+                
+            } catch (error) {
+                console.error('[WebXR] Init error:', error);
+                this.showVRStatus('VR init failed: ' + error.message);
                 return false;
             }
-            
-            // Enable XR on renderer
-            this.renderer.xr.enabled = true;
-            
-            // Create VR button
-            this.createVRButton();
-            
-            console.log('[WebXR] VR mode enabled');
-            return true;
-        },
+        }
         
-        /**
-         * Create VR entry button (simplified VRButton)
-         */
-        createVRButton() {
-            const button = document.createElement('button');
-            button.id = 'vr-button';
-            button.textContent = 'ENTER VR';
-            button.style.cssText = `
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                padding: 15px 30px;
-                background: #2a2a5a;
-                border: 1px solid #4a4a8a;
-                color: #e0e0e0;
-                font-family: 'Courier New', monospace;
-                font-size: 14px;
-                cursor: pointer;
-                z-index: 1000;
-            `;
+        async toggleVR() {
+            const vrButton = document.getElementById('vr-button');
             
-            button.onclick = async () => {
-                const session = await navigator.xr.requestSession('immersive-vr', {
-                    optionalFeatures: ['local-floor', 'bounded-floor']
+            if (this.xrSession) {
+                // Exit VR
+                await this.exitVR();
+            } else {
+                // Enter VR
+                await this.enterVR();
+            }
+        }
+        
+        async enterVR() {
+            const vrButton = document.getElementById('vr-button');
+            
+            try {
+                console.log('[WebXR] Requesting VR session...');
+                this.showVRStatus('Requesting VR session...');
+                vrButton.disabled = true;
+                
+                // Request session with required features for Quest
+                // 'local-floor' gives us a reference space at floor level
+                // 'local' is a fallback that should always work
+                const sessionInit = {
+                    optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'],
+                    requiredFeatures: ['local']
+                };
+                
+                this.xrSession = await navigator.xr.requestSession('immersive-vr', sessionInit);
+                console.log('[WebXR] Session created:', this.xrSession);
+                
+                // Set up session end handler
+                this.xrSession.addEventListener('end', () => {
+                    console.log('[WebXR] Session ended');
+                    this.onVRSessionEnd();
                 });
                 
-                this.renderer.xr.setSession(session);
-                button.textContent = 'VR ACTIVE';
-                button.disabled = true;
+                // Set the session on the renderer
+                await this.renderer.xr.setSession(this.xrSession);
+                console.log('[WebXR] Session set on renderer');
                 
-                session.addEventListener('end', () => {
-                    button.textContent = 'ENTER VR';
-                    button.disabled = false;
-                });
-            };
-            
-            document.body.appendChild(button);
-            this.vrButton = button;
-        },
+                // Get reference space (try local-floor first, fall back to local)
+                try {
+                    this.xrReferenceSpace = await this.xrSession.requestReferenceSpace('local-floor');
+                    console.log('[WebXR] Using local-floor reference space');
+                } catch (e) {
+                    console.log('[WebXR] local-floor not available, using local');
+                    this.xrReferenceSpace = await this.xrSession.requestReferenceSpace('local');
+                }
+                
+                // Add camera to scene and attach stimulus container
+                if (!this.scene.children.includes(this.camera)) {
+                    this.scene.add(this.camera);
+                }
+                this.camera.add(this.vrStimulusContainer);
+                
+                vrButton.textContent = 'EXIT VR';
+                vrButton.disabled = false;
+                this.showVRStatus('VR Active');
+                
+                console.log('[WebXR] VR session started successfully');
+                
+            } catch (error) {
+                console.error('[WebXR] Failed to enter VR:', error);
+                this.showVRStatus('VR Error: ' + error.message);
+                vrButton.disabled = false;
+                vrButton.textContent = 'ENTER VR';
+                this.xrSession = null;
+                
+                // Show user-friendly error
+                alert('Failed to enter VR:\n' + error.message + '\n\nMake sure you\'re using a VR headset and have granted permissions.');
+            }
+        }
         
-        /**
-         * Build the trial queue based on experiment configuration
-         */
-        buildTrialQueue() {
+        async exitVR() {
+            if (this.xrSession) {
+                try {
+                    await this.xrSession.end();
+                } catch (e) {
+                    console.warn('[WebXR] Error ending session:', e);
+                }
+            }
+        }
+        
+        onVRSessionEnd() {
+            const vrButton = document.getElementById('vr-button');
+            
+            this.xrSession = null;
+            this.xrReferenceSpace = null;
+            
+            // Remove stimulus container from camera
+            this.camera.remove(this.vrStimulusContainer);
+            
+            vrButton.textContent = 'ENTER VR';
+            vrButton.disabled = false;
+            this.showVRStatus('VR Exited');
+            
+            console.log('[WebXR] VR session cleanup complete');
+        }
+        
+        showVRStatus(message) {
+            const vrStatus = document.getElementById('vr-status');
+            vrStatus.textContent = message;
+            vrStatus.style.display = 'block';
+            
+            // Auto-hide after 3 seconds for non-error messages
+            if (!message.toLowerCase().includes('error')) {
+                setTimeout(() => {
+                    if (vrStatus.textContent === message) {
+                        vrStatus.style.display = 'none';
+                    }
+                }, 3000);
+            }
+        }
+        
+        isInVR() {
+            return this.renderer && this.renderer.xr && this.renderer.xr.isPresenting;
+        }
+        
+        // ============================================================
+        // TRIAL MANAGEMENT
+        // ============================================================
+        
+        buildTrialQueue(stimType) {
             this.trialQueue = [];
             
-            if (this.config.stimulusType === 'color' || 
-                this.config.stimulusType === 'combined') {
-                // Add color trials
-                const colors = Object.values(Config.colors);
-                for (let rep = 0; rep < this.config.repetitions; rep++) {
-                    colors.forEach(color => {
-                        this.trialQueue.push({
-                            type: 'color',
-                            config: color
-                        });
-                    });
+            if (stimType === 'color' || stimType === 'combined') {
+                for (let r = 0; r < this.config.repetitions; r++) {
+                    Object.values(Config.colors).forEach(c => 
+                        this.trialQueue.push({ type: 'color', config: c }));
                 }
             }
             
-            if (this.config.stimulusType === 'shape' || 
-                this.config.stimulusType === 'combined') {
-                // Add shape trials
-                const shapes = Object.keys(Config.shapes);
-                for (let rep = 0; rep < this.config.repetitions; rep++) {
-                    shapes.forEach(shape => {
-                        this.trialQueue.push({
-                            type: 'shape',
-                            config: Config.shapes[shape],
-                            shapeName: shape
-                        });
-                    });
+            if (stimType === 'shape' || stimType === 'combined') {
+                for (let r = 0; r < this.config.repetitions; r++) {
+                    Object.keys(Config.shapes).forEach(s => 
+                        this.trialQueue.push({ 
+                            type: 'shape', 
+                            config: Config.shapes[s], 
+                            shapeName: s 
+                        }));
                 }
             }
             
-            console.log(`[QUEUE] Built ${this.trialQueue.length} trials`);
-        },
+            console.log(`[Experiment] Built ${this.trialQueue.length} trials`);
+        }
         
-        /**
-         * Read configuration from UI
-         */
-        readConfigFromUI() {
-            this.config.stimulusType = document.getElementById('stimulus-type').value;
-            this.config.stimulusDuration = parseInt(document.getElementById('stim-duration').value);
-            this.config.isiDuration = parseInt(document.getElementById('isi-duration').value);
-            this.config.repetitions = parseInt(document.getElementById('repetitions').value);
-            this.config.rotationSpeed = parseFloat(document.getElementById('rotation-speed').value);
-            this.config.enableVR = document.getElementById('enable-vr').checked;
-            this.config.enableLSL = document.getElementById('enable-lsl').checked;
-            
-            // Update global config for tracking dots
-            Config.scene.showTrackingDots = document.getElementById('tracking-dots').checked;
-        },
+        randomizeTrials() {
+            for (let i = this.trialQueue.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.trialQueue[i], this.trialQueue[j]] = [this.trialQueue[j], this.trialQueue[i]];
+            }
+        }
         
-        /**
-         * Start the experiment
-         */
         async start() {
-            // Read configuration
-            this.readConfigFromUI();
-            
-            // Initialize scene
-            this.initScene();
-            
-            // Initialize WebXR if enabled
-            if (this.config.enableVR) {
-                await this.initWebXR();
-            }
-            
-            // Connect to LSL if enabled
-            if (this.config.enableLSL) {
-                const connected = await EventLogger.connectLSL();
-                if (!connected) {
-                    const proceed = confirm(
-                        'Could not connect to LSL bridge.\n\n' +
-                        'Make sure lsl_bridge.py is running:\n' +
-                        '  python bridges/lsl_bridge.py\n\n' +
-                        'Continue without LSL markers?'
-                    );
-                    if (!proceed) {
-                        this.cleanup();
-                        document.getElementById('control-panel').classList.remove('hidden');
-                        return;
-                    }
-                }
-            }
-            
-            // Build trial queue
-            this.buildTrialQueue();
-            
-            // Hide control panel, show status
-            document.getElementById('control-panel').classList.add('hidden');
-            document.getElementById('status-overlay').style.display = 'block';
-            
-            // Initialize logger
-            EventLogger.init();
-            
-            // Start experiment
+            await EventLogger.init();
             this.isRunning = true;
+            this.isPaused = false;
             this.currentTrialIndex = 0;
             
-            // Initial ISI before first stimulus
             this.showISI();
             this.scheduledTimeout = setTimeout(() => this.startNextTrial(), this.config.isiDuration);
             
-            // Start render loop
             this.lastFrameTime = performance.now();
-            this.renderer.setAnimationLoop((time) => this.animate(time));
+            this.renderer.setAnimationLoop((time, frame) => this.animate(time, frame));
             
-            console.log('[EXPERIMENT] Started');
-        },
+            console.log('[Experiment] Started');
+        }
         
-        /**
-         * Show inter-stimulus interval (neutral gray)
-         */
         showISI() {
-            // Remove current stimulus properly
-            if (this.currentStimulus) {
-                if (this.currentStimulus.isMesh) {
-                    // Remove from scene
-                    this.scene.remove(this.currentStimulus);
-                    // Also remove from camera (VR mode)
-                    this.camera.remove(this.currentStimulus);
-                    
-                    // Dispose of tracking dot children if present
-                    this.currentStimulus.children.forEach(child => {
-                        if (child.geometry) child.geometry.dispose();
-                        if (child.material) child.material.dispose();
-                    });
-                    
-                    // Dispose of main geometry/material
-                    if (this.currentStimulus.geometry) {
-                        this.currentStimulus.geometry.dispose();
-                    }
-                    if (this.currentStimulus.material) {
-                        this.currentStimulus.material.dispose();
-                    }
-                }
-                this.currentStimulus = null;
+            // Clean up current stimulus
+            if (this.currentStimulus?.isMesh) {
+                // Remove from both possible parents
+                this.scene.remove(this.currentStimulus);
+                this.vrStimulusContainer.remove(this.currentStimulus);
+                
+                // Dispose children
+                this.currentStimulus.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                
+                // Dispose mesh itself
+                if (this.currentStimulus.geometry) this.currentStimulus.geometry.dispose();
+                if (this.currentStimulus.material) this.currentStimulus.material.dispose();
             }
             
-            // Set background to neutral gray
+            this.currentStimulus = null;
             this.scene.background = new THREE.Color(Config.neutralGray);
-        },
+        }
         
-        /**
-         * Start the next trial
-         */
-        startNextTrial() {
+        async startNextTrial() {
             if (!this.isRunning || this.isPaused) return;
-            
             if (this.currentTrialIndex >= this.trialQueue.length) {
-                this.endExperiment();
+                await this.end();
                 return;
             }
             
             const trial = this.trialQueue[this.currentTrialIndex];
+            const inVR = this.isInVR();
             
-            // Create stimulus
             if (trial.type === 'color') {
-                this.showColorStimulus(trial.config);
-            } else if (trial.type === 'shape') {
-                this.showShapeStimulus(trial.shapeName);
-            }
-            
-            // Log onset
-            this.stimulusOnsetTime = performance.now();
-            EventLogger.logOnset(
-                trial.type,
-                trial.config.code,
-                this.currentTrialIndex + 1
-            );
-            
-            // Update status display
-            document.getElementById('trial-counter').textContent = 
-                `${this.currentTrialIndex + 1}/${this.trialQueue.length}`;
-            
-            // Schedule offset
-            this.scheduledTimeout = setTimeout(() => this.endCurrentTrial(), this.config.stimulusDuration);
-        },
-        
-        /**
-         * Show a color stimulus
-         */
-        showColorStimulus(colorConfig) {
-            // For color stimuli, just change background
-            this.scene.background = new THREE.Color(colorConfig.hex);
-            
-            // Store reference for logging
-            this.currentStimulus = { 
-                userData: { 
-                    type: 'color', 
-                    config: colorConfig 
-                } 
-            };
-        },
-        
-        /**
-         * Show a 3D shape stimulus
-         */
-        showShapeStimulus(shapeName) {
-            // Set background to black for shape viewing (better contrast)
-            this.scene.background = new THREE.Color(Config.scene.shapeBackground);
-            
-            // Create shape
-            const shape = StimulusFactory.createShapeStimulus(shapeName);
-            shape.userData.rotationSpeed = this.config.rotationSpeed;
-            
-            // Add tracking dots if enabled
-            if (Config.scene.showTrackingDots) {
-                this.addTrackingDots(shape);
-            }
-            
-            // For VR: parent to camera to keep head-locked
-            if (this.config.enableVR && this.renderer.xr.isPresenting) {
-                // In VR, position relative to camera
-                shape.position.set(0, 0, -3);
-                this.camera.add(shape);
-                this.scene.add(this.camera);
+                // Color stimulus - just change background
+                this.scene.background = new THREE.Color(trial.config.hex);
+                this.currentStimulus = { type: 'color', config: trial.config };
+                
             } else {
-                // Desktop: center in scene
-                shape.position.set(0, 0, 0);
-                this.scene.add(shape);
+                // Shape stimulus
+                this.scene.background = new THREE.Color(Config.scene.shapeBackground);
+                
+                const shape = StimulusFactory.createShapeStimulus(trial.shapeName, {
+                    rotationSpeed: this.config.rotationSpeed,
+                    scale: Config.scene.shapeScale * (inVR ? Config.vr.scaleMultiplier : 1)
+                });
+                
+                if (Config.scene.showTrackingDots) {
+                    this.addTrackingDots(shape);
+                }
+                
+                if (inVR) {
+                    // In VR: add to the head-locked container
+                    shape.position.set(0, 0, 0); // Container is already positioned
+                    this.vrStimulusContainer.add(shape);
+                    console.log('[VR] Shape added to head-locked container');
+                } else {
+                    // Not in VR: add to scene normally
+                    this.scene.add(shape);
+                }
+                
+                this.currentStimulus = shape;
             }
             
-            this.currentStimulus = shape;
-        },
+            this.stimulusOnsetTime = performance.now();
+            await EventLogger.logOnset(trial.type, trial.config.code, this.currentTrialIndex + 1);
+            
+            this.updateStatus();
+            this.scheduledTimeout = setTimeout(() => this.endCurrentTrial(), this.config.stimulusDuration);
+        }
         
-        /**
-         * Add tracking dots to a shape for rotation visualization
-         * These are small black spheres at cardinal points
-         */
-        addTrackingDots(shape) {
-            const dotGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-            const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-            
-            // Get bounding sphere to place dots at surface
-            shape.geometry.computeBoundingSphere();
-            const radius = shape.geometry.boundingSphere.radius * 0.95;
-            
-            // Add dots at key positions
-            const positions = [
-                [radius, 0, 0],      // +X
-                [-radius, 0, 0],     // -X
-                [0, radius, 0],      // +Y
-                [0, -radius, 0],     // -Y
-                [0, 0, radius],      // +Z
-                [0, 0, -radius]      // -Z
-            ];
-            
-            positions.forEach(pos => {
-                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
-                dot.position.set(...pos);
-                shape.add(dot);  // Parent to shape so dots rotate with it
-            });
-        },
-        
-        /**
-         * End the current trial
-         */
-        endCurrentTrial() {
+        async endCurrentTrial() {
             if (!this.isRunning || !this.currentStimulus) return;
             
             const trial = this.trialQueue[this.currentTrialIndex];
             const duration = performance.now() - this.stimulusOnsetTime;
             
-            // Log offset
-            EventLogger.logOffset(
-                trial.type,
-                trial.config.code,
-                this.currentTrialIndex + 1,
-                duration
-            );
+            await EventLogger.logOffset(trial.type, trial.config.code, this.currentTrialIndex + 1, duration);
             
-            // Show ISI
             this.showISI();
-            
-            // Advance to next trial
             this.currentTrialIndex++;
+            this.updateStatus();
             
-            // Schedule next trial after ISI
             this.scheduledTimeout = setTimeout(() => this.startNextTrial(), this.config.isiDuration);
-        },
+        }
         
-        /**
-         * Animation loop
-         */
-        animate(time) {
+        animate(time, xrFrame) {
             if (!this.isRunning) return;
             
-            // Calculate delta time for consistent rotation
-            const deltaTime = (time - this.lastFrameTime) / 1000;
+            const dt = (time - this.lastFrameTime) / 1000;
             this.lastFrameTime = time;
             
-            // Update elapsed time display
-            if (EventLogger.experimentStartTime) {
-                const elapsed = (time - EventLogger.experimentStartTime) / 1000;
-                document.getElementById('elapsed-time').textContent = elapsed.toFixed(2);
+            // Update shape rotation
+            if (this.currentStimulus?.isMesh && this.currentStimulus.userData?.rotationSpeed) {
+                this.currentStimulus.rotation.y += this.currentStimulus.userData.rotationSpeed * dt;
             }
             
-            // Rotate shape if present
-            if (this.currentStimulus && 
-                this.currentStimulus.userData && 
-                this.currentStimulus.userData.type === 'shape') {
-                
-                const speed = this.currentStimulus.userData.rotationSpeed;
-                this.currentStimulus.rotation.y += speed * deltaTime;
-            }
-            
-            // Render
             this.renderer.render(this.scene, this.camera);
-        },
+        }
         
-        /**
-         * End the experiment
-         */
-        endExperiment() {
+        updateStatus() {
+            document.getElementById('trial-num').textContent = this.currentTrialIndex + 1;
+            document.getElementById('trial-total').textContent = this.trialQueue.length;
+            document.getElementById('progress-fill').style.width = 
+                `${((this.currentTrialIndex + 1) / this.trialQueue.length) * 100}%`;
+        }
+        
+        addTrackingDots(shape) {
+            const dotGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            shape.geometry.computeBoundingSphere();
+            const radius = shape.geometry.boundingSphere.radius * 0.95;
+            
+            [[radius, 0, 0], [-radius, 0, 0], [0, radius, 0], 
+             [0, -radius, 0], [0, 0, radius], [0, 0, -radius]].forEach(pos => {
+                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                dot.position.set(...pos);
+                shape.add(dot);
+            });
+        }
+        
+        togglePause() {
+            if (!this.isRunning) return;
+            this.isPaused = !this.isPaused;
+            
+            if (this.isPaused) {
+                clearTimeout(this.scheduledTimeout);
+                EventLogger.log('PAUSE');
+                document.getElementById('status-text').textContent = 'PAUSED';
+            } else {
+                EventLogger.log('RESUME');
+                document.getElementById('status-text').textContent = 'Running';
+                this.startNextTrial();
+            }
+        }
+        
+        async skip() {
+            if (!this.isRunning || this.isPaused) return;
+            clearTimeout(this.scheduledTimeout);
+            await EventLogger.log('SKIP', { trial: this.currentTrialIndex });
+            await this.endCurrentTrial();
+        }
+        
+        async abort() {
+            await EventLogger.log('ABORT', { trial: this.currentTrialIndex });
+            await this.end();
+        }
+        
+        async end() {
             this.isRunning = false;
             
-            // Clear any pending timeouts
             if (this.scheduledTimeout) {
                 clearTimeout(this.scheduledTimeout);
                 this.scheduledTimeout = null;
             }
             
-            EventLogger.log('EXPERIMENT_END', {
+            if (this.renderer) {
+                this.renderer.setAnimationLoop(null);
+            }
+            
+            await EventLogger.log('EXPERIMENT_END', {
                 totalTrials: this.trialQueue.length,
-                completedTrials: this.currentTrialIndex
+                completed: this.currentTrialIndex
             });
             
-            // Stop render loop
-            if (this.renderer) {
-                this.renderer.setAnimationLoop(null);
-            }
+            document.getElementById('status-text').textContent = 'COMPLETE';
             
-            // Export log to console
-            console.log('=== EXPERIMENT LOG ===');
-            console.log(EventLogger.export());
+            console.log('=== EXPERIMENT COMPLETE ===');
+            console.log(EventLogger.exportJSON());
             
-            // Show completion message
-            alert('Experiment complete!\n\nCheck console for event log export.');
+            alert(`Experiment Complete!\n\nTotal markers sent: ${EventLogger.markerCount}\nCheck console for full log.`);
             
-            // Clean up and reset for potential re-run
             this.cleanup();
-            
-            // Reset UI
             document.getElementById('control-panel').classList.remove('hidden');
-            document.getElementById('status-overlay').style.display = 'none';
-        },
+            document.getElementById('status-bar').style.display = 'none';
+        }
         
-        /**
-         * Clean up Three.js resources for re-run
-         */
         cleanup() {
-            console.log('[CLEANUP] Starting cleanup...');
+            console.log('[CLEANUP] Starting...');
             
-            // Stop any running animation loop first
-            if (this.renderer) {
-                this.renderer.setAnimationLoop(null);
-            }
-            
-            // Clear any pending timeouts
+            if (this.renderer) this.renderer.setAnimationLoop(null);
             if (this.scheduledTimeout) {
                 clearTimeout(this.scheduledTimeout);
                 this.scheduledTimeout = null;
             }
             
-            // Remove current stimulus with full disposal
-            if (this.currentStimulus) {
-                if (this.currentStimulus.isMesh) {
-                    this.scene?.remove(this.currentStimulus);
-                    this.camera?.remove(this.currentStimulus);
-                    
-                    // Dispose children (tracking dots)
-                    this.currentStimulus.children.forEach(child => {
-                        if (child.geometry) child.geometry.dispose();
-                        if (child.material) child.material.dispose();
-                    });
-                    
-                    if (this.currentStimulus.geometry) {
-                        this.currentStimulus.geometry.dispose();
-                    }
-                    if (this.currentStimulus.material) {
-                        this.currentStimulus.material.dispose();
-                    }
-                }
-                this.currentStimulus = null;
+            // Exit VR if active
+            if (this.xrSession) {
+                this.xrSession.end().catch(e => console.warn('Error ending XR session:', e));
             }
             
-            // Clear camera children
+            // Clean up current stimulus
+            if (this.currentStimulus?.isMesh) {
+                this.scene?.remove(this.currentStimulus);
+                this.vrStimulusContainer?.remove(this.currentStimulus);
+                this.currentStimulus.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                if (this.currentStimulus.geometry) this.currentStimulus.geometry.dispose();
+                if (this.currentStimulus.material) this.currentStimulus.material.dispose();
+            }
+            
+            // Clean up VR stimulus container
+            if (this.vrStimulusContainer) {
+                this.camera?.remove(this.vrStimulusContainer);
+                while (this.vrStimulusContainer.children.length > 0) {
+                    const child = this.vrStimulusContainer.children[0];
+                    this.vrStimulusContainer.remove(child);
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            }
+            
+            // Clean up camera children
             if (this.camera) {
                 while (this.camera.children.length > 0) {
                     const child = this.camera.children[0];
@@ -1209,7 +1064,7 @@
                 }
             }
             
-            // Dispose of all scene objects
+            // Clean up scene
             if (this.scene) {
                 while (this.scene.children.length > 0) {
                     const obj = this.scene.children[0];
@@ -1219,159 +1074,115 @@
                 }
             }
             
-            // Dispose of renderer and remove canvas
+            // Dispose renderer
             if (this.renderer) {
                 this.renderer.dispose();
                 const canvas = this.renderer.domElement;
-                if (canvas && canvas.parentNode) {
-                    canvas.parentNode.removeChild(canvas);
-                }
+                if (canvas?.parentNode) canvas.parentNode.removeChild(canvas);
             }
             
-            // Remove VR button if present
-            if (this.vrButton && this.vrButton.parentNode) {
-                this.vrButton.parentNode.removeChild(this.vrButton);
-                this.vrButton = null;
-            }
+            // Hide VR button
+            const vrBtn = document.getElementById('vr-button');
+            if (vrBtn) vrBtn.style.display = 'none';
             
-            // Null out Three.js objects
             this.renderer = null;
             this.scene = null;
             this.camera = null;
-            
-            // Reset experiment state
+            this.currentStimulus = null;
+            this.vrStimulusContainer = null;
             this.isRunning = false;
             this.isPaused = false;
             this.currentTrialIndex = 0;
             this.trialQueue = [];
-            this.stimulusOnsetTime = null;
-            this.lastFrameTime = null;
+            this.xrSession = null;
+            this.xrReferenceSpace = null;
             
-            // Disconnect LSL
-            EventLogger.disconnectLSL();
-            
-            // Clear event log display
             document.getElementById('log-entries').innerHTML = '';
-            
-            console.log('[CLEANUP] Complete - ready for re-run');
-        },
+            console.log('[CLEANUP] Complete');
+        }
+    }
+
+    // ============================================================
+    // MAIN APPLICATION
+    // ============================================================
+    const controller = new ExperimentController();
+    
+    // Check server connection on load
+    EventLogger.checkServerConnection();
+    
+    document.getElementById('start-btn').addEventListener('click', async () => {
+        // Check connection again
+        const connected = await EventLogger.checkServerConnection();
+        if (!connected) {
+            alert('Cannot connect to EEG server!\n\nMake sure the server is running:\n  python eeg_server_with_lsl.py\n\nThen refresh this page.');
+            return;
+        }
         
-        /**
-         * Handle window resize
-         */
-        onWindowResize() {
-            if (!this.camera || !this.renderer) return;
-            
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        },
+        // Read config
+        controller.config.stimulusDuration = parseInt(document.getElementById('stim-duration').value);
+        controller.config.isiDuration = parseInt(document.getElementById('isi-duration').value);
+        controller.config.repetitions = parseInt(document.getElementById('repetitions').value);
+        controller.config.rotationSpeed = parseFloat(document.getElementById('rotation-speed').value);
         
-        /**
-         * Handle keyboard input
-         */
-        onKeyDown(event) {
-            switch (event.code) {
-                case 'Space':
-                    // Pause/Resume
-                    if (this.isRunning) {
-                        this.isPaused = !this.isPaused;
-                        EventLogger.log(this.isPaused ? 'PAUSE' : 'RESUME');
-                        console.log(this.isPaused ? '[PAUSED]' : '[RESUMED]');
-                    }
-                    event.preventDefault();
-                    break;
-                    
-                case 'Escape':
-                    // Abort experiment
-                    if (this.isRunning) {
-                        EventLogger.log('ABORT', { 
-                            reason: 'user_escape',
-                            trialIndex: this.currentTrialIndex 
-                        });
-                        this.endExperiment();
-                    }
-                    break;
-                    
-                case 'KeyN':
-                    // Skip to next stimulus (for testing)
-                    if (this.isRunning && !this.isPaused) {
-                        EventLogger.log('SKIP', { 
-                            trialIndex: this.currentTrialIndex 
-                        });
-                        this.endCurrentTrial();
-                    }
-                    break;
+        const stimType = document.getElementById('stimulus-type').value;
+        const randomize = document.getElementById('randomize').checked;
+        const enableVR = document.getElementById('enable-vr').checked;
+        
+        Config.scene.showTrackingDots = document.getElementById('tracking-dots').checked;
+        
+        // Initialize scene
+        controller.initScene(document.getElementById('canvas-container'));
+        
+        // Initialize WebXR if requested
+        if (enableVR) {
+            const vrReady = await controller.initWebXR();
+            if (!vrReady) {
+                console.warn('[Main] VR not available, continuing without VR');
             }
         }
-    };
-
-    // ============================================================
-    // UI EVENT HANDLERS
-    // ============================================================
-    document.addEventListener('DOMContentLoaded', () => {
-        // Start button
-        document.getElementById('start-btn').addEventListener('click', () => {
-            ExperimentController.start();
-        });
         
-        // Toggle event log
-        document.getElementById('toggle-log-btn').addEventListener('click', () => {
-            document.getElementById('event-log').classList.toggle('visible');
-        });
+        controller.buildTrialQueue(stimType);
+        if (randomize) controller.randomizeTrials();
+        
+        // UI
+        document.getElementById('control-panel').classList.add('hidden');
+        document.getElementById('status-bar').style.display = 'block';
+        document.getElementById('trial-total').textContent = controller.trialQueue.length;
+        
+        // Start experiment
+        await controller.start();
     });
-
-    // ============================================================
-    // EXTENSION API
-    // Functions to make it easy to extend the stimulus set
-    // ============================================================
     
-    /**
-     * Add a custom color stimulus
-     * @param {string} name - Unique identifier
-     * @param {number} hex - Hex color value (e.g., 0xff00ff)
-     * @param {string} code - Short code for event logging
-     */
-    function addCustomColor(name, hex, code) {
-        Config.colors[name] = { hex, name, code };
-        console.log(`[CONFIG] Added custom color: ${name}`);
-    }
+    document.getElementById('toggle-log').addEventListener('click', () => {
+        document.getElementById('event-log').classList.toggle('visible');
+    });
     
-    /**
-     * Add a custom shape stimulus
-     * @param {string} name - Unique identifier
-     * @param {THREE.BufferGeometry} geometry - Three.js geometry
-     * @param {string} code - Short code for event logging
-     */
-    function addCustomShape(name, geometry, code) {
-        Config.shapes[name] = { name, code, customGeometry: geometry };
-        console.log(`[CONFIG] Added custom shape: ${name}`);
-    }
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+        switch (e.code) {
+            case 'Space':
+                e.preventDefault();
+                controller.togglePause();
+                break;
+            case 'Escape':
+                if (controller.isRunning) controller.abort();
+                break;
+            case 'KeyN':
+                controller.skip();
+                break;
+        }
+    });
     
-    /**
-     * Add an auditory cue (stub for future implementation)
-     * @param {string} name - Cue identifier
-     * @param {string} audioUrl - Path to audio file
-     */
-    function addAuditoryCue(name, audioUrl) {
-        // Stub for future auditory stimulus support
-        console.log(`[CONFIG] Auditory cue registered: ${name} -> ${audioUrl}`);
-        // Implementation would use Web Audio API
-    }
+    // Update elapsed time
+    setInterval(() => {
+        if (controller.isRunning && EventLogger.experimentStartTime) {
+            const elapsed = (performance.now() - EventLogger.experimentStartTime) / 1000;
+            document.getElementById('elapsed').textContent = elapsed.toFixed(1);
+        }
+    }, 100);
     
-    // Expose API globally for console access
-    window.EEGStimulus = {
-        Config,
-        EventLogger,
-        StimulusFactory,
-        ExperimentController,
-        addCustomColor,
-        addCustomShape,
-        addAuditoryCue
-    };
-    
-    console.log('=== EEG STIMULUS PLATFORM LOADED ===');
-    console.log('Access API via window.EEGStimulus');
+    window.EEGStimulus = { Config, EventLogger, StimulusFactory, controller };
+    console.log('EEG Stimulus Platform v2.1 loaded (HTTP/LSL + WebXR)');
     </script>
 </body>
 </html>
