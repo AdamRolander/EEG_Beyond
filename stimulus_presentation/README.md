@@ -4,18 +4,18 @@
 
 - Make requirements.txt file, think about conda env or python virtual env setup with automation
 - Proper documentation (pictures/debugging/troubleshooting) esp. for VR integration
-- Create feture TODOs/Issues
+- Create + assign feature TODOs/Issues
 - Integrate with Yann's branch
 
 ### Setup
 
 - Install dependencies:
   `pip insall pylsl websockets`
-- Launch server in terminal from `stimulus_presentation` directory:
+- Launch server in terminal from `stimulus_presentation` directory
   `python eeg_server_with_lsl.py`
-- Launch app in browser
+- Launch app in new terminal from `stimulus_presentation` directory
   `python -m http.server 8000`
-- Navigate to `http:localhost:8000` in browser
+- Navigate to `http://localhost:8000` in browser
 
 For VR deployment:
 
