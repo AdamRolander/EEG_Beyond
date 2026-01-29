@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EEG Stimulus Platform - Modular Version</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #808080;
+            overflow: hidden;
+        }
+        
+        #control-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 30px;
+            border: 1px solid #404040;
+            z-index: 1000;
+            min-width: 420px;
+        }
+        
+        #control-panel h1 {
+            font-size: 16px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #404040;
+            padding-bottom: 10px;
+        }
+        
+        #control-panel h2 {
+            font-size: 13px;
+            margin: 15px 0 10px 0;
+            color: #a0a0a0;
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+        }
+        
+        label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 4px;
+            color: #808080;
+        }
+        
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 13px;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            background: #2a5a2a;
+            border: 1px solid #3a7a3a;
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #3a7a3a;
+        }
+        
+        button.secondary {
+            background: #2a2a5a;
+            border-color: #3a3a7a;
+        }
+        
+        button.secondary:hover {
+            background: #3a3a7a;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: #e0e0e0;
+            padding: 10px 20px;
+            font-size: 12px;
+            display: none;
+            z-index: 100;
+        }
+        
+        #status-bar .progress-bar {
+            height: 4px;
+            background: #333;
+            margin-top: 8px;
+        }
+        
+        #status-bar .progress-fill {
+            height: 100%;
+            background: #4a8a4a;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        #event-log {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 320px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            color: #00ff00;
+            font-size: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 500;
+            display: none;
+        }
+        
+        #event-log.visible {
+            display: block;
+        }
+        
+        .log-entry {
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+        
+        .log-onset { color: #00ff00; }
+        .log-offset { color: #ff9900; }
+        .log-system { color: #666666; }
+        
+        .hidden { display: none !important; }
+        
+        .info-text {
+            font-size: 10px;
+            color: #606060;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="control-panel">
+        <h1>EEG STIMULUS PLATFORM v2.0 (Modular)</h1>
+        
+        <h2>Stimulus Selection</h2>
+        <div class="control-group">
+            <label>Stimulus Type</label>
+            <select id="stimulus-type">
+                <option value="color">Color Baseline Only</option>
+                <option value="shape">3D Primitives Only</option>
+                <option value="combined" selected>Combined Protocol</option>
+            </select>
+        </div>
+        
+        <h2>Timing Parameters</h2>
+        <div class="control-group">
+            <label>Stimulus Duration (ms)</label>
+            <input type="number" id="stim-duration" value="3000" min="500" max="30000" step="100">
+        </div>
+        <div class="control-group">
+            <label>Inter-Stimulus Interval (ms)</label>
+            <input type="number" id="isi-duration" value="1000" min="200" max="10000" step="100">
+        </div>
+        <div class="control-group">
+            <label>Repetitions per Stimulus</label>
+            <input type="number" id="repetitions" value="3" min="1" max="20">
+        </div>
+        
+        <h2>3D Shape Settings</h2>
+        <div class="control-group">
+            <label>Rotation Speed (rad/s)</label>
+            <input type="number" id="rotation-speed" value="0.5" min="0" max="2" step="0.1">
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="tracking-dots"> Show Tracking Dots (pilot testing)</label>
+        </div>
+        
+        <h2>Options</h2>
+        <div class="control-group">
+            <label><input type="checkbox" id="randomize"> Randomize Trial Order</label>
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="enable-vr"> Enable WebXR (VR Mode)</label>
+        </div>
+        
+        <button id="start-btn">START EXPERIMENT</button>
+        <button id="toggle-log" class="secondary">Toggle Event Log</button>
+        <button id="download-log" class="secondary">Download Log Template</button>
+        
+        <p class="info-text">
+            <strong>Keyboard Controls:</strong><br>
+            [SPACE] Pause/Resume | [ESC] Abort | [N] Skip Trial
+        </p>
+    </div>
+    
+    <div id="canvas-container"></div>
+    
+    <div id="status-bar">
+        <span>Trial: <span id="trial-num">0</span>/<span id="trial-total">0</span></span>
+        <span style="margin-left: 30px;">Elapsed: <span id="elapsed">0.0</span>s</span>
+        <span style="margin-left: 30px;">Status: <span id="status-text">Running</span></span>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+    </div>
+    
+    <div id="event-log">
+        <div style="border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; color: #888;">
+            EVENT LOG
+        </div>
+        <div id="log-entries"></div>
+    </div>
+
+    <!-- Three.js via CDN with importmap for ES modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    
+    <script type="module">
+    import * as THREE from 'three';
+    
+    // ============================================================
+    // INLINE MODULES (for single-file deployment)
+    // In production, import from separate files
+    // ============================================================
+    
+    // --- Config ---
+    const Config = {
+        colors: {
+            RED:    { hex: 0xff0000, name: 'RED',   code: 'COL_R' },
+            GREEN:  { hex: 0x00ff00, name: 'GREEN', code: 'COL_G' },
+            BLUE:   { hex: 0x0000ff, name: 'BLUE',  code: 'COL_B' },
+            BLACK:  { hex: 0x000000, name: 'BLACK', code: 'COL_K' },
+            WHITE:  { hex: 0xffffff, name: 'WHITE', code: 'COL_W' }
+        },
+        shapes: {
+            SPHERE:      { name: 'SPHERE',      code: 'SHP_SPH' },
+            CUBE:        { name: 'CUBE',        code: 'SHP_CUB' },
+            PYRAMID:     { name: 'PYRAMID',     code: 'SHP_PYR' },
+            ICOSAHEDRON: { name: 'ICOSAHEDRON', code: 'SHP_ICO' }
+        },
+        neutralGray: 0x808080,
+        scene: {
+            cameraFOV: 50,
+            cameraNear: 0.1,
+            cameraFar: 1000,
+            cameraZ: 5,
+            shapeScale: 1.35,           // ~10% smaller
+            shapeColor: 0xe0e0e0,
+            shapeBackground: 0x000000,  // Black for shape stimuli
+            ambientIntensity: 0.4,
+            directionalIntensity: 0.6,
+            showTrackingDots: false
+        },
+        defaults: {
+            stimulusDuration: 3000,
+            isiDuration: 1000,
+            repetitions: 3,
+            rotationSpeed: 0.5
+        }
+    };
+    
+    // --- Event Logger ---
+    const EventLogger = {
+        entries: [],
+        experimentStartTime: null,
+        
+        init() {
+            this.entries = [];
+            this.experimentStartTime = performance.now();
+            this.log('EXPERIMENT_START', { timestamp: Date.now() });
+        },
+        
+        log(eventType, data = {}) {
+            const absoluteTime = performance.now();
+            const relativeTime = this.experimentStartTime 
+                ? absoluteTime - this.experimentStartTime : 0;
+            
+            const entry = { eventType, absoluteTime, relativeTime, ...data };
+            this.entries.push(entry);
+            
+            console.log(`[EEG_EVENT] ${eventType}`, {
+                absoluteMs: absoluteTime.toFixed(3),
+                relativeMs: relativeTime.toFixed(3),
+                ...data
+            });
+            
+            this.updateVisualLog(entry);
+            return entry;
+        },
+        
+        logOnset(stimulusType, stimulusCode, trialNumber) {
+            return this.log('STIM_ONSET', { stimulusType, stimulusCode, trialNumber });
+        },
+        
+        logOffset(stimulusType, stimulusCode, trialNumber, duration) {
+            return this.log('STIM_OFFSET', { 
+                stimulusType, stimulusCode, trialNumber, 
+                actualDurationMs: duration.toFixed(3) 
+            });
+        },
+        
+        updateVisualLog(entry) {
+            const container = document.getElementById('log-entries');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            
+            if (entry.eventType.includes('ONSET')) div.classList.add('log-onset');
+            else if (entry.eventType.includes('OFFSET')) div.classList.add('log-offset');
+            else div.classList.add('log-system');
+            
+            const time = entry.relativeTime.toFixed(1).padStart(8, ' ');
+            div.textContent = `[${time}ms] ${entry.eventType} ${entry.stimulusCode || ''}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        },
+        
+        exportJSON() {
+            return JSON.stringify(this.entries, null, 2);
+        },
+        
+        exportCSV() {
+            const headers = ['eventType','absoluteTime','relativeTime','stimulusType','stimulusCode','trialNumber','actualDurationMs'];
+            const rows = this.entries.map(e => headers.map(h => e[h] ?? '').join(','));
+            return [headers.join(','), ...rows].join('\n');
+        }
+    };
+    
+    // --- Stimulus Factory ---
+    const StimulusFactory = {
+        createColorStimulus(colorConfig) {
+            THREE.ColorManagement.enabled = false;
+            return new THREE.Color(colorConfig.hex);
+        },
+        
+        createShapeStimulus(shapeType, options = {}) {
+            const scale = options.scale || Config.scene.shapeScale;
+            let geometry;
+            
+            switch (shapeType) {
+                case 'SPHERE':
+                    geometry = new THREE.SphereGeometry(scale, 32, 32);
+                    break;
+                case 'CUBE':
+                    geometry = new THREE.BoxGeometry(scale * 1.6, scale * 1.6, scale * 1.6);
+                    break;
+                case 'PYRAMID':
+                    geometry = new THREE.TetrahedronGeometry(scale * 1.4);
+                    break;
+                case 'ICOSAHEDRON':
+                    geometry = new THREE.IcosahedronGeometry(scale * 1.2);
+                    break;
+                default:
+                    geometry = new THREE.SphereGeometry(scale, 32, 32);
+            }
+            
+            const material = new THREE.MeshStandardMaterial({
+                color: Config.scene.shapeColor,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = {
+                type: 'shape',
+                config: Config.shapes[shapeType],
+                rotationSpeed: options.rotationSpeed || 0
+            };
+            
+            return mesh;
+        },
+        
+        createLighting() {
+            return [
+                new THREE.AmbientLight(0xffffff, Config.scene.ambientIntensity),
+                Object.assign(
+                    new THREE.DirectionalLight(0xffffff, Config.scene.directionalIntensity),
+                    { position: new THREE.Vector3(5, 5, 5) }
+                )
+            ];
+        }
+    };
+    
+    // --- Experiment Controller ---
+    class ExperimentController {
+        constructor() {
+            this.isRunning = false;
+            this.isPaused = false;
+            this.currentTrialIndex = 0;
+            this.trialQueue = [];
+            this.renderer = null;
+            this.scene = null;
+            this.camera = null;
+            this.currentStimulus = null;
+            this.stimulusOnsetTime = null;
+            this.lastFrameTime = null;
+            this.scheduledTimeout = null;
+            this.config = { ...Config.defaults };
+            this.vrEnabled = false;
+        }
+        
+        initScene(container) {
+            // Remove any existing canvases (safety check for re-run)
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            
+            this.renderer = new THREE.WebGLRenderer({ antialias: true });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            this.renderer.outputEncoding = THREE.LinearEncoding;
+            container.appendChild(this.renderer.domElement);
+            
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(Config.neutralGray);
+            
+            this.camera = new THREE.PerspectiveCamera(
+                Config.scene.cameraFOV,
+                window.innerWidth / window.innerHeight,
+                Config.scene.cameraNear,
+                Config.scene.cameraFar
+            );
+            this.camera.position.z = Config.scene.cameraZ;
+            
+            StimulusFactory.createLighting().forEach(l => this.scene.add(l));
+            
+            // Set up event listeners (only once)
+            if (!this._listenersInitialized) {
+                window.addEventListener('resize', () => {
+                    if (this.camera && this.renderer) {
+                        this.camera.aspect = window.innerWidth / window.innerHeight;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    }
+                });
+                this._listenersInitialized = true;
+            }
+            
+            console.log('[INIT] Scene initialized');
+        }
+        
+        async initWebXR() {
+            if (!navigator.xr) return false;
+            const supported = await navigator.xr.isSessionSupported('immersive-vr');
+            if (!supported) return false;
+            
+            this.renderer.xr.enabled = true;
+            this.vrEnabled = true;
+            this.createVRButton();
+            return true;
+        }
+        
+        createVRButton() {
+            const btn = document.createElement('button');
+            btn.id = 'vr-button';
+            btn.textContent = 'ENTER VR';
+            btn.style.cssText = `
+                position: fixed; bottom: 20px; left: 50%;
+                transform: translateX(-50%); padding: 15px 30px;
+                background: #2a2a5a; border: 1px solid #4a4a8a;
+                color: #e0e0e0; font-family: monospace; cursor: pointer; z-index: 1000;
+            `;
+            btn.onclick = async () => {
+                const session = await navigator.xr.requestSession('immersive-vr');
+                this.renderer.xr.setSession(session);
+                btn.disabled = true;
+                btn.textContent = 'VR ACTIVE';
+                session.addEventListener('end', () => {
+                    btn.disabled = false;
+                    btn.textContent = 'ENTER VR';
+                });
+            };
+            document.body.appendChild(btn);
+        }
+        
+        buildTrialQueue(stimType) {
+            this.trialQueue = [];
+            
+            if (stimType === 'color' || stimType === 'combined') {
+                for (let r = 0; r < this.config.repetitions; r++) {
+                    Object.values(Config.colors).forEach(c => 
+                        this.trialQueue.push({ type: 'color', config: c }));
+                }
+            }
+            
+            if (stimType === 'shape' || stimType === 'combined') {
+                for (let r = 0; r < this.config.repetitions; r++) {
+                    Object.keys(Config.shapes).forEach(s => 
+                        this.trialQueue.push({ 
+                            type: 'shape', 
+                            config: Config.shapes[s], 
+                            shapeName: s 
+                        }));
+                }
+            }
+        }
+        
+        randomizeTrials() {
+            for (let i = this.trialQueue.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.trialQueue[i], this.trialQueue[j]] = [this.trialQueue[j], this.trialQueue[i]];
+            }
+        }
+        
+        start() {
+            EventLogger.init();
+            this.isRunning = true;
+            this.isPaused = false;
+            this.currentTrialIndex = 0;
+            
+            this.showISI();
+            this.scheduledTimeout = setTimeout(() => this.startNextTrial(), this.config.isiDuration);
+            
+            this.lastFrameTime = performance.now();
+            this.renderer.setAnimationLoop(t => this.animate(t));
+        }
+        
+        showISI() {
+            if (this.currentStimulus?.isMesh) {
+                // Remove from both scene and camera (VR mode)
+                this.scene.remove(this.currentStimulus);
+                this.camera.remove(this.currentStimulus);
+                
+                // Dispose tracking dot children
+                this.currentStimulus.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+                
+                // Dispose main geometry/material
+                if (this.currentStimulus.geometry) this.currentStimulus.geometry.dispose();
+                if (this.currentStimulus.material) this.currentStimulus.material.dispose();
+            }
+            this.currentStimulus = null;
+            this.scene.background = new THREE.Color(Config.neutralGray);
+        }
+        
+        startNextTrial() {
+            if (!this.isRunning || this.isPaused) return;
+            if (this.currentTrialIndex >= this.trialQueue.length) {
+                this.end();
+                return;
+            }
+            
+            const trial = this.trialQueue[this.currentTrialIndex];
+            
+            if (trial.type === 'color') {
+                this.scene.background = StimulusFactory.createColorStimulus(trial.config);
+                this.currentStimulus = { type: 'color', config: trial.config };
+            } else {
+                // Black background for shapes
+                this.scene.background = new THREE.Color(Config.scene.shapeBackground);
+                const shape = StimulusFactory.createShapeStimulus(trial.shapeName, {
+                    rotationSpeed: this.config.rotationSpeed
+                });
+                
+                // Add tracking dots if enabled
+                if (Config.scene.showTrackingDots) {
+                    this.addTrackingDots(shape);
+                }
+                
+                if (this.vrEnabled && this.renderer.xr.isPresenting) {
+                    shape.position.set(0, 0, -3);
+                    this.camera.add(shape);
+                    if (!this.scene.children.includes(this.camera)) {
+                        this.scene.add(this.camera);
+                    }
+                } else {
+                    this.scene.add(shape);
+                }
+                this.currentStimulus = shape;
+            }
+            
+            this.stimulusOnsetTime = performance.now();
+            EventLogger.logOnset(trial.type, trial.config.code, this.currentTrialIndex + 1);
+            
+            this.updateStatus();
+            this.scheduledTimeout = setTimeout(() => this.endCurrentTrial(), this.config.stimulusDuration);
+        }
+        
+        endCurrentTrial() {
+            if (!this.isRunning || !this.currentStimulus) return;
+            
+            const trial = this.trialQueue[this.currentTrialIndex];
+            const duration = performance.now() - this.stimulusOnsetTime;
+            
+            EventLogger.logOffset(trial.type, trial.config.code, this.currentTrialIndex + 1, duration);
+            
+            this.showISI();
+            this.currentTrialIndex++;
+            this.updateStatus();
+            
+            this.scheduledTimeout = setTimeout(() => this.startNextTrial(), this.config.isiDuration);
+        }
+        
+        animate(time) {
+            if (!this.isRunning) return;
+            
+            const dt = (time - this.lastFrameTime) / 1000;
+            this.lastFrameTime = time;
+            
+            if (this.currentStimulus?.isMesh && this.currentStimulus.userData?.rotationSpeed) {
+                this.currentStimulus.rotation.y += this.currentStimulus.userData.rotationSpeed * dt;
+            }
+            
+            this.renderer.render(this.scene, this.camera);
+        }
+        
+        updateStatus() {
+            document.getElementById('trial-num').textContent = this.currentTrialIndex + 1;
+            document.getElementById('trial-total').textContent = this.trialQueue.length;
+            document.getElementById('progress-fill').style.width = 
+                `${((this.currentTrialIndex + 1) / this.trialQueue.length) * 100}%`;
+        }
+        
+        addTrackingDots(shape) {
+            const dotGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            shape.geometry.computeBoundingSphere();
+            const radius = shape.geometry.boundingSphere.radius * 0.95;
+            
+            const positions = [
+                [radius, 0, 0], [-radius, 0, 0],
+                [0, radius, 0], [0, -radius, 0],
+                [0, 0, radius], [0, 0, -radius]
+            ];
+            
+            positions.forEach(pos => {
+                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                dot.position.set(...pos);
+                shape.add(dot);
+            });
+        }
+        
+        togglePause() {
+            if (!this.isRunning) return;
+            this.isPaused = !this.isPaused;
+            
+            if (this.isPaused) {
+                clearTimeout(this.scheduledTimeout);
+                EventLogger.log('PAUSE');
+                document.getElementById('status-text').textContent = 'PAUSED';
+            } else {
+                EventLogger.log('RESUME');
+                document.getElementById('status-text').textContent = 'Running';
+                this.startNextTrial();
+            }
+        }
+        
+        skip() {
+            if (!this.isRunning || this.isPaused) return;
+            clearTimeout(this.scheduledTimeout);
+            EventLogger.log('SKIP', { trial: this.currentTrialIndex });
+            this.endCurrentTrial();
+        }
+        
+        abort() {
+            EventLogger.log('ABORT', { trial: this.currentTrialIndex });
+            this.end();
+        }
+        
+        end() {
+            this.isRunning = false;
+            
+            if (this.scheduledTimeout) {
+                clearTimeout(this.scheduledTimeout);
+                this.scheduledTimeout = null;
+            }
+            
+            if (this.renderer) {
+                this.renderer.setAnimationLoop(null);
+            }
+            
+            EventLogger.log('EXPERIMENT_END', {
+                totalTrials: this.trialQueue.length,
+                completed: this.currentTrialIndex
+            });
+            
+            document.getElementById('status-text').textContent = 'COMPLETE';
+            
+            console.log('=== EXPERIMENT COMPLETE ===');
+            console.log(EventLogger.exportJSON());
+            
+            // Clean up for re-run
+            this.cleanup();
+            
+            // Reset UI
+            document.getElementById('control-panel').classList.remove('hidden');
+            document.getElementById('status-bar').style.display = 'none';
+        }
+        
+        cleanup() {
+            console.log('[CLEANUP] Starting cleanup...');
+            
+            // Stop animation loop first
+            if (this.renderer) {
+                this.renderer.setAnimationLoop(null);
+            }
+            
+            // Clear pending timeouts
+            if (this.scheduledTimeout) {
+                clearTimeout(this.scheduledTimeout);
+                this.scheduledTimeout = null;
+            }
+            
+            // Remove current stimulus with full disposal
+            if (this.currentStimulus) {
+                if (this.currentStimulus.isMesh) {
+                    this.scene?.remove(this.currentStimulus);
+                    this.camera?.remove(this.currentStimulus);
+                    
+                    // Dispose children (tracking dots)
+                    this.currentStimulus.children.forEach(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    });
+                    
+                    if (this.currentStimulus.geometry) this.currentStimulus.geometry.dispose();
+                    if (this.currentStimulus.material) this.currentStimulus.material.dispose();
+                }
+                this.currentStimulus = null;
+            }
+            
+            // Clear camera children
+            if (this.camera) {
+                while (this.camera.children.length > 0) {
+                    const child = this.camera.children[0];
+                    this.camera.remove(child);
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            }
+            
+            // Dispose scene objects
+            if (this.scene) {
+                while (this.scene.children.length > 0) {
+                    const obj = this.scene.children[0];
+                    this.scene.remove(obj);
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) obj.material.dispose();
+                }
+            }
+            
+            // Dispose renderer and remove canvas
+            if (this.renderer) {
+                this.renderer.dispose();
+                const canvas = this.renderer.domElement;
+                if (canvas && canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
+            }
+            
+            // Remove VR button
+            const vrBtn = document.getElementById('vr-button');
+            if (vrBtn) vrBtn.remove();
+            
+            // Null out Three.js objects
+            this.renderer = null;
+            this.scene = null;
+            this.camera = null;
+            
+            // Reset state
+            this.isRunning = false;
+            this.isPaused = false;
+            this.currentTrialIndex = 0;
+            this.trialQueue = [];
+            this.stimulusOnsetTime = null;
+            this.lastFrameTime = null;
+            this.vrEnabled = false;
+            
+            // Clear log display
+            document.getElementById('log-entries').innerHTML = '';
+            
+            console.log('[CLEANUP] Complete - ready for re-run');
+        }
+    }
+    
+    // ============================================================
+    // MAIN APPLICATION
+    // ============================================================
+    
+    const controller = new ExperimentController();
+    
+    document.getElementById('start-btn').addEventListener('click', async () => {
+        // Read config from UI
+        controller.config.stimulusDuration = parseInt(document.getElementById('stim-duration').value);
+        controller.config.isiDuration = parseInt(document.getElementById('isi-duration').value);
+        controller.config.repetitions = parseInt(document.getElementById('repetitions').value);
+        controller.config.rotationSpeed = parseFloat(document.getElementById('rotation-speed').value);
+        
+        const stimType = document.getElementById('stimulus-type').value;
+        const randomize = document.getElementById('randomize').checked;
+        const enableVR = document.getElementById('enable-vr').checked;
+        
+        // Update tracking dots setting
+        Config.scene.showTrackingDots = document.getElementById('tracking-dots').checked;
+        
+        // Initialize scene
+        controller.initScene(document.getElementById('canvas-container'));
+        
+        // WebXR
+        if (enableVR) {
+            await controller.initWebXR();
+        }
+        
+        // Build trials
+        controller.buildTrialQueue(stimType);
+        if (randomize) controller.randomizeTrials();
+        
+        // Update UI
+        document.getElementById('control-panel').classList.add('hidden');
+        document.getElementById('status-bar').style.display = 'block';
+        document.getElementById('trial-total').textContent = controller.trialQueue.length;
+        
+        // Start
+        controller.start();
+    });
+    
+    document.getElementById('toggle-log').addEventListener('click', () => {
+        document.getElementById('event-log').classList.toggle('visible');
+    });
+    
+    document.getElementById('download-log').addEventListener('click', () => {
+        const content = EventLogger.exportCSV() || 'eventType,absoluteTime,relativeTime,stimulusType,stimulusCode,trialNumber,actualDurationMs\n';
+        const blob = new Blob([content], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `eeg_log_${Date.now()}.csv`;
+        a.click();
+    });
+    
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+        switch (e.code) {
+            case 'Space':
+                e.preventDefault();
+                controller.togglePause();
+                break;
+            case 'Escape':
+                if (controller.isRunning) controller.abort();
+                break;
+            case 'KeyN':
+                controller.skip();
+                break;
+        }
+    });
+    
+    // Update elapsed time
+    setInterval(() => {
+        if (controller.isRunning && EventLogger.experimentStartTime) {
+            const elapsed = (performance.now() - EventLogger.experimentStartTime) / 1000;
+            document.getElementById('elapsed').textContent = elapsed.toFixed(1);
+        }
+    }, 100);
+    
+    // Expose for debugging
+    window.EEGStimulus = { Config, EventLogger, StimulusFactory, controller };
+    console.log('EEG Stimulus Platform loaded. Access via window.EEGStimulus');
+    </script>
+</body>
+</html>

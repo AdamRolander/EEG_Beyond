@@ -1,0 +1,3292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EEG Stimulus Platform</title>
+    <style>
+        /* ============================================================
+           MINIMAL RESEARCH UI STYLES
+           Keep visual clutter to absolute minimum
+           ============================================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #808080; /* Neutral gray */
+            overflow: hidden;
+        }
+        
+        /* Control panel - only visible before experiment starts */
+        #control-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 30px;
+            border: 1px solid #404040;
+            z-index: 1000;
+            min-width: 400px;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Scrollbar styling */
+        #control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        #control-panel::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+        #control-panel::-webkit-scrollbar-thumb {
+            background: #505050;
+            border-radius: 4px;
+        }
+        #control-panel::-webkit-scrollbar-thumb:hover {
+            background: #606060;
+        }
+        
+        #control-panel h1 {
+            font-size: 16px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #404040;
+            padding-bottom: 10px;
+        }
+        
+        #control-panel h2 {
+            font-size: 14px;
+            margin: 15px 0 10px 0;
+            color: #a0a0a0;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #808080;
+        }
+        
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background: #2a5a2a;
+            border: 1px solid #3a7a3a;
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #3a7a3a;
+        }
+        
+        button:disabled {
+            background: #404040;
+            cursor: not-allowed;
+        }
+        
+        /* Canvas container */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Status overlay - minimal info during experiment */
+        #status-overlay {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 11px;
+            color: #606060;
+            z-index: 100;
+            display: none;
+        }
+        
+        /* Hidden during experiment */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Event log panel */
+        #event-log {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 350px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff00;
+            font-size: 11px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 500;
+            display: none;
+        }
+        
+        #event-log.visible {
+            display: block;
+        }
+        
+        .log-entry {
+            margin-bottom: 2px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .log-onset { color: #00ff00; }
+        .log-offset { color: #ff6600; }
+        .log-system { color: #666666; }
+    </style>
+</head>
+<body>
+    <!-- Control Panel -->
+    <div id="control-panel">
+        <h1>EEG STIMULUS PLATFORM v1.0</h1>
+        
+        <h2>Protocol Mode</h2>
+        <div class="control-group">
+            <label>Color Protocol Type</label>
+            <select id="protocol-mode">
+                <option value="visual">Visual Stimuli (Real Colors)</option>
+                <option value="imagery">Mental Visualization (Imagery)</option>
+                <option value="custom">Custom Configuration</option>
+            </select>
+            <div id="protocol-description" style="font-size: 11px; color: #a0a0a0; display: block; margin-top: 8px; padding: 8px; background: #252525; border-left: 2px solid #4a4a8a; line-height: 1.5;">
+                <strong>Visual Protocol:</strong> 300ms-1s stimulus + 2-3s gray mask<br>
+                <span style="color: #60a060;">Angular size: 5-10° | EEG window: 1000ms post-onset</span>
+            </div>
+        </div>
+        
+        <h2>Experiment Mode</h2>
+        <div class="control-group">
+            <label>Stimulus Type</label>
+            <select id="stimulus-type">
+                <option value="color">Color Baseline</option>
+                <option value="shape">3D Primitives</option>
+                <option value="combined">Combined Protocol</option>
+            </select>
+        </div>
+        
+        <h2>Timing Configuration</h2>
+        <div class="control-group">
+            <label>Stimulus Duration (ms)</label>
+            <input type="number" id="stim-duration" value="300" min="100" max="30000" step="100">
+            <span id="stim-duration-hint" style="font-size: 10px; color: #606060; display: block; margin-top: 2px;">
+                Recommended: 300ms (range: 100-1000ms)
+            </span>
+        </div>
+        <div class="control-group">
+            <label>Inter-Stimulus Interval / Gray Mask (ms)</label>
+            <input type="number" id="isi-duration" value="2500" min="200" max="10000" step="100">
+            <span id="isi-duration-hint" style="font-size: 10px; color: #606060; display: block; margin-top: 2px;">
+                Gray mask: 2000-3000ms (avoids persistence)
+            </span>
+        </div>
+        <div class="control-group">
+            <label>Repetitions per Stimulus</label>
+            <input type="number" id="repetitions" value="30" min="1" max="100">
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 2px;">
+                Recommended: 30 for EEG decoding
+            </span>
+        </div>
+        
+        <h2>Ganzfeld Pre-Experiment</h2>
+        <div id="ganzfeld-settings" class="control-group">
+            <label>
+                <input type="checkbox" id="enable-ganzfeld"> Enable Ganzfeld Protocol (VR recommended)
+            </label>
+            <span style="font-size: 10px; color: #ff9900; display: block; margin-top: 4px;">
+                ⚠️ Total duration: ~26 minutes before color trials
+            </span>
+            
+            <div id="ganzfeld-params" style="display: none; margin-top: 10px; padding: 10px; background: #252525; border-left: 2px solid #ff6600;">
+                <div style="font-size: 11px; color: #a0a0a0; margin-bottom: 10px;">
+                    <strong>Ganzfeld Sequence:</strong><br>
+                    RED → ORANGE → PURPLE → BLUE → BLACK<br>
+                    Goal: maximize residual hallucinations
+                </div>
+                
+                <div class="control-group" style="margin-top: 8px;">
+                    <label>Duration per color (seconds)</label>
+                    <input type="number" id="ganzfeld-color-duration" value="300" min="60" max="600" step="30">
+                    <span style="font-size: 10px; color: #606060;">Default: 300s (5 min) per color</span>
+                </div>
+                
+                <div class="control-group" style="margin-top: 8px;">
+                    <label>HSV Transition duration (seconds)</label>
+                    <input type="number" id="ganzfeld-transition-duration" value="15" min="5" max="60" step="5">
+                    <span style="font-size: 10px; color: #606060;">Smooth transition between colors</span>
+                </div>
+                
+                <div class="control-group" style="margin-top: 8px;">
+                    <label>Final black duration (seconds)</label>
+                    <input type="number" id="ganzfeld-black-duration" value="60" min="30" max="180" step="10">
+                    <span style="font-size: 10px; color: #606060;">Absolute black before trials</span>
+                </div>
+                
+                <div style="font-size: 10px; color: #60a060; margin-top: 10px; padding: 5px; background: #1a2a1a;">
+                    <strong>Required physical parameters:</strong><br>
+                    • Luminance: 700 lux at cornea<br>
+                    • FOV: 160°+ (full VR field)<br>
+                    • Refresh: 90+ Hz<br>
+                    • Peak hallucinations at t=21:45
+                </div>
+            </div>
+        </div>
+        
+        <h2>Breaks / Pauses</h2>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="enable-breaks" checked> Enable breaks between series
+            </label>
+        </div>
+        <div class="control-group">
+            <label>Trials per Series (before break)</label>
+            <input type="number" id="trials-per-series" value="15" min="5" max="100" step="5">
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 2px;">
+                Press any key/VR controller to continue after break
+            </span>
+        </div>
+        
+        <h2>Visual Parameters</h2>
+        <div class="control-group">
+            <label>Angular Size (visual degrees)</label>
+            <select id="angular-size">
+                <option value="5">5° - Central focus</option>
+                <option value="7" selected>7° - Standard</option>
+                <option value="10">10° - Larger field</option>
+                <option value="33">33° - Wide field</option>
+                <option value="full">Full screen</option>
+            </select>
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 2px;">
+                5-10° recommended for focused attention
+            </span>
+        </div>
+        <div class="control-group">
+            <label>EEG Analysis Window (ms post-onset)</label>
+            <input type="number" id="analysis-window" value="1000" min="200" max="2000" step="100">
+        </div>
+        
+        <h2 id="shape-options-header">3D Shape Options</h2>
+        <div class="control-group">
+            <label>Rotation Speed (rad/s)</label>
+            <input type="number" id="rotation-speed" value="0.5" min="0" max="2" step="0.1">
+        </div>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="tracking-dots"> Show Tracking Dots (for pilot testing)
+            </label>
+        </div>
+        
+        <h2>Mental Imagery Settings</h2>
+        <div id="imagery-settings" class="control-group" style="display: none;">
+            <label>
+                <input type="checkbox" id="show-imagery-instructions" checked> Show imagery instructions
+            </label>
+            <div class="control-group" style="margin-top: 10px;">
+                <label>Instruction Duration (ms)</label>
+                <input type="number" id="instruction-duration" value="2000" min="1000" max="5000" step="500">
+            </div>
+        </div>
+        
+        <h2>WebXR</h2>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="enable-vr"> Enable VR Mode
+            </label>
+        </div>
+        
+        <h2>Audio</h2>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="enable-audio" checked> Enable audio cues
+            </label>
+            <div style="margin-top: 8px; margin-left: 20px;">
+                <label style="display: block; margin-bottom: 5px;">
+                    <input type="radio" name="audio-mode" value="beep" checked> Beep sound
+                </label>
+                <label style="display: block; margin-bottom: 5px;">
+                    <input type="radio" name="audio-mode" value="voice"> Voice (say color name)
+                </label>
+            </div>
+            <div style="margin-top: 8px;">
+                <button type="button" id="test-audio-btn" style="padding: 6px 12px; background: #3a3a5a; font-size: 12px;">
+                    🔊 Test Audio
+                </button>
+            </div>
+        </div>
+        
+        <h2>EEG Integration</h2>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="enable-lsl"> Enable LSL Markers
+            </label>
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 4px;">
+                Requires lsl_bridge.py running
+            </span>
+        </div>
+        <div class="control-group">
+            <label>LSL Bridge URL</label>
+            <input type="text" id="lsl-url" value="ws://localhost:8765" style="font-size: 12px;">
+            <span style="font-size: 10px; color: #606060; display: block; margin-top: 4px;">
+                For VR/ngrok: use wss://xxxx.ngrok-free.app
+            </span>
+        </div>
+        
+        <button id="start-btn">START EXPERIMENT</button>
+        <button id="toggle-log-btn" style="background: #2a2a5a; border-color: #3a3a7a;">Toggle Event Log</button>
+        
+        <p style="margin-top: 15px; font-size: 11px; color: #606060;">
+            Controls: [SPACE] Pause/Resume | [ESC] Abort | [N] Next Stimulus
+        </p>
+    </div>
+    
+    <!-- Canvas Container -->
+    <div id="canvas-container"></div>
+    
+    <!-- Status Overlay -->
+    <div id="status-overlay">
+        Trial: <span id="trial-counter">0/0</span> | 
+        Time: <span id="elapsed-time">0.00</span>s |
+        <span id="lsl-status" style="color: #666;">LSL: --</span>
+    </div>
+    
+    <!-- Event Log -->
+    <div id="event-log">
+        <div style="border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
+            EVENT LOG (for EEG marker integration)
+        </div>
+        <div id="log-entries"></div>
+    </div>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+    /* ============================================================
+       EEG STIMULUS PLATFORM
+       
+       A research-grade visual stimulus generator for EEG studies.
+       Built with Three.js for precise timing and WebXR support.
+       
+       Author: Research Engineering
+       Version: 1.0
+       ============================================================ */
+
+    // ============================================================
+    // AUDIO MODULE
+    // Simple beep sounds using Web Audio API + Voice synthesis
+    // ============================================================
+    const AudioManager = {
+        context: null,
+        enabled: true,
+        initialized: false,
+        mode: 'beep',  // 'beep' or 'voice'
+        voiceReady: false,
+        selectedVoice: null,
+        
+        /**
+         * Initialize audio context (must be called after user interaction)
+         */
+        init() {
+            if (this.initialized && this.context && this.context.state === 'running') {
+                return true;
+            }
+            
+            try {
+                // Create new context
+                this.context = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('[AUDIO] Created AudioContext, state:', this.context.state);
+                
+                // Force resume
+                if (this.context.state !== 'running') {
+                    this.context.resume().then(() => {
+                        console.log('[AUDIO] Context resumed, state:', this.context.state);
+                    });
+                }
+                
+                // Initialize speech synthesis
+                this.initVoice();
+                
+                this.initialized = true;
+                return true;
+            } catch (e) {
+                console.error('[AUDIO] Failed to create AudioContext:', e);
+                this.enabled = false;
+                return false;
+            }
+        },
+        
+        /**
+         * Initialize speech synthesis and select a calm voice
+         */
+        initVoice() {
+            if (!('speechSynthesis' in window)) {
+                console.warn('[AUDIO] Speech synthesis not supported');
+                return;
+            }
+            
+            const selectVoice = () => {
+                const voices = speechSynthesis.getVoices();
+                console.log('[AUDIO] Available voices:', voices.length);
+                
+                // Prefer French voices, then English, prioritize female/soft voices
+                const preferredVoices = [
+                    // French voices (soft female preferred)
+                    'Amélie', 'Audrey', 'Aurelie', 'Thomas', 'Google français',
+                    // English soft voices
+                    'Samantha', 'Karen', 'Moira', 'Fiona', 'Google UK English Female',
+                    'Google US English', 'Microsoft Zira'
+                ];
+                
+                // Try to find a preferred voice
+                for (const name of preferredVoices) {
+                    const voice = voices.find(v => v.name.includes(name));
+                    if (voice) {
+                        this.selectedVoice = voice;
+                        console.log('[AUDIO] Selected voice:', voice.name);
+                        break;
+                    }
+                }
+                
+                // Fallback to first available French or English voice
+                if (!this.selectedVoice) {
+                    this.selectedVoice = voices.find(v => v.lang.startsWith('fr')) ||
+                                         voices.find(v => v.lang.startsWith('en')) ||
+                                         voices[0];
+                    if (this.selectedVoice) {
+                        console.log('[AUDIO] Fallback voice:', this.selectedVoice.name);
+                    }
+                }
+                
+                this.voiceReady = !!this.selectedVoice;
+            };
+            
+            // Voices may load asynchronously
+            if (speechSynthesis.getVoices().length > 0) {
+                selectVoice();
+            } else {
+                speechSynthesis.onvoiceschanged = selectVoice;
+            }
+        },
+        
+        /**
+         * Speak a color name with a calm, soft voice
+         */
+        speakColor(colorName) {
+            console.log(`[AUDIO] speakColor("${colorName}")`);
+            
+            if (!this.enabled) {
+                console.log('[AUDIO] Audio is disabled');
+                return;
+            }
+            
+            if (!('speechSynthesis' in window)) {
+                console.warn('[AUDIO] Speech synthesis not available, falling back to beep');
+                this.softBeep();
+                return;
+            }
+            
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+            
+            // Create utterance
+            const utterance = new SpeechSynthesisUtterance(colorName);
+            
+            // Configure for calm, soft delivery
+            utterance.rate = 0.85;      // Slightly slower
+            utterance.pitch = 0.9;      // Slightly lower pitch
+            utterance.volume = 0.7;     // Softer volume
+            
+            // Use selected voice if available
+            if (this.selectedVoice) {
+                utterance.voice = this.selectedVoice;
+            }
+            
+            // Speak
+            speechSynthesis.speak(utterance);
+            console.log('[AUDIO] Speaking:', colorName);
+        },
+        
+        /**
+         * Play audio cue - uses mode setting (beep or voice)
+         */
+        playCue(colorName = null) {
+            if (this.mode === 'voice' && colorName) {
+                this.speakColor(colorName);
+            } else {
+                this.softBeep();
+            }
+        },
+        
+        /**
+         * Play a short beep - simple and loud
+         */
+        beep(frequency = 800, duration = 150, volume = 1.0) {
+            console.log(`[AUDIO] beep() called: ${frequency}Hz, ${duration}ms, vol=${volume}`);
+            
+            if (!this.enabled) {
+                console.log('[AUDIO] Audio is disabled');
+                return;
+            }
+            
+            // Always try to init
+            if (!this.context) {
+                this.init();
+            }
+            
+            if (!this.context) {
+                console.error('[AUDIO] No audio context!');
+                return;
+            }
+            
+            // Resume if needed
+            if (this.context.state === 'suspended') {
+                console.log('[AUDIO] Resuming suspended context...');
+                this.context.resume();
+            }
+            
+            try {
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.context.destination);
+                
+                osc.type = 'square'; // Square wave is louder/clearer
+                osc.frequency.value = frequency;
+                gain.gain.value = volume;
+                
+                osc.start();
+                osc.stop(this.context.currentTime + duration / 1000);
+                
+                console.log('[AUDIO] Beep playing now!');
+            } catch (e) {
+                console.error('[AUDIO] Error playing beep:', e);
+            }
+        },
+        
+        /**
+         * Play color transition beep (short, high pitch)
+         */
+        colorBeep() {
+            console.log('[AUDIO] colorBeep()');
+            this.beep(1000, 100, 0.8);
+        },
+        
+        /**
+         * Play phase change beep (longer, lower pitch)
+         */
+        phaseBeep() {
+            console.log('[AUDIO] phaseBeep()');
+            this.beep(600, 200, 0.8);
+        },
+        
+        /**
+         * Play start beep
+         */
+        startBeep() {
+            console.log('[AUDIO] startBeep()');
+            this.beep(800, 150, 0.8);
+        },
+        
+        /**
+         * Soft, relaxing beep - gentle sine wave with fade in/out
+         */
+        softBeep() {
+            console.log('[AUDIO] softBeep()');
+            
+            if (!this.enabled) return;
+            if (!this.context) this.init();
+            if (!this.context) return;
+            
+            if (this.context.state === 'suspended') {
+                this.context.resume();
+            }
+            
+            try {
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.context.destination);
+                
+                // Soft sine wave at low frequency (relaxing)
+                osc.type = 'sine';
+                osc.frequency.value = 396; // 396 Hz - soothing frequency
+                
+                // Gentle envelope: fade in, sustain, fade out
+                const now = this.context.currentTime;
+                const duration = 0.3; // 300ms total
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.15, now + 0.05);  // Fade in (50ms)
+                gain.gain.setValueAtTime(0.15, now + 0.15);           // Sustain
+                gain.gain.linearRampToValueAtTime(0, now + duration); // Fade out
+                
+                osc.start(now);
+                osc.stop(now + duration + 0.05);
+                
+                console.log('[AUDIO] Soft beep playing');
+            } catch (e) {
+                console.error('[AUDIO] softBeep error:', e);
+            }
+        },
+        
+        /**
+         * Test beep - call from console: AudioManager.test()
+         */
+        test() {
+            console.log('[AUDIO] test() - playing soft beep...');
+            this.init();
+            setTimeout(() => {
+                this.softBeep();
+            }, 100);
+        }
+    };
+
+    // ============================================================
+    // CONFIGURATION MODULE
+    // Central configuration for all experiment parameters
+    // ============================================================
+    const Config = {
+        // Color stimuli - pure sRGB primaries
+        colors: {
+            RED:    { hex: 0xff0000, name: 'RED',   code: 'COL_R' },
+            GREEN:  { hex: 0x00ff00, name: 'GREEN', code: 'COL_G' },
+            BLUE:   { hex: 0x0000ff, name: 'BLUE',  code: 'COL_B' },
+            BLACK:  { hex: 0x000000, name: 'BLACK', code: 'COL_K' },
+            WHITE:  { hex: 0xffffff, name: 'WHITE', code: 'COL_W' }
+        },
+        
+        // Shape stimuli
+        shapes: {
+            SPHERE:      { name: 'SPHERE',      code: 'SHP_SPH' },
+            CUBE:        { name: 'CUBE',        code: 'SHP_CUB' },
+            PYRAMID:     { name: 'PYRAMID',     code: 'SHP_PYR' },
+            ICOSAHEDRON: { name: 'ICOSAHEDRON', code: 'SHP_ICO' }
+        },
+        
+        // Neutral gray for ISI (inter-stimulus interval)
+        neutralGray: 0x808080,
+        
+        // Protocol presets for color experiments
+        protocols: {
+            // Visual Stimuli (Real Colors)
+            visual: {
+                stimulusDuration: 300,    // 300ms - 1s (default 300ms)
+                isiDuration: 2500,        // 2-3s gray mask
+                repetitions: 30,          // Standard for EEG decoding
+                analysisWindow: 1000,     // EEG analysis up to 1000ms post-onset
+                description: '300ms-1s stimulus + 2-3s gray mask'
+            },
+            // Mental Visualization (Imagery)
+            imagery: {
+                stimulusDuration: 5000,   // 3-10s for mental imagery stabilization
+                isiDuration: 2000,        // 1-3s rest delay
+                repetitions: 30,
+                analysisWindow: 1000,
+                showInstructions: true,
+                instructionDuration: 2000,
+                description: '3-10s imagery + 1-3s rest'
+            }
+        },
+        
+        // Default timing (can be overridden by UI)
+        defaults: {
+            stimulusDuration: 300,   // ms (visual protocol default)
+            isiDuration: 2500,       // ms (gray mask)
+            repetitions: 30,
+            rotationSpeed: 0.5,      // rad/s
+            analysisWindow: 1000,    // ms post-onset
+            angularSize: 7           // visual degrees
+        },
+        
+        // 3D scene parameters
+        scene: {
+            cameraFOV: 50,
+            cameraNear: 0.1,
+            cameraFar: 1000,
+            cameraZ: 5,
+            shapeScale: 1.35,           // ~10% smaller than original 1.5
+            shapeColor: 0xe0e0e0,       // Light gray
+            shapeBackground: 0x000000,  // Black background for shape stimuli
+            ambientIntensity: 0.4,
+            directionalIntensity: 0.6,
+            showTrackingDots: false     // Optional rotation tracking markers
+        },
+        
+        // Ganzfeld protocol sequence
+        // Sequence: RED → ORANGE → PURPLE → BLUE → BLACK
+        // HSV transitions between colors, immediate to black
+        ganzfeld: {
+            sequence: [
+                { name: 'RED',    rgb: [255, 0, 0],     hex: 0xff0000, hsv: [0, 100, 100] },
+                { name: 'ORANGE', rgb: [255, 128, 0],   hex: 0xff8000, hsv: [30, 100, 100] },
+                { name: 'PURPLE', rgb: [128, 0, 255],   hex: 0x8000ff, hsv: [270, 100, 100] },
+                { name: 'BLUE',   rgb: [0, 0, 255],     hex: 0x0000ff, hsv: [240, 100, 100] },
+                { name: 'BLACK',  rgb: [0, 0, 0],       hex: 0x000000, hsv: [0, 0, 0], noTransition: true }
+            ],
+            targetLux: 700,          // Target luminance at cornea
+            targetFOV: 160,          // Field of view in degrees
+            refreshRate: 90          // Minimum refresh rate Hz
+        }
+    };
+
+    // ============================================================
+    // EVENT LOGGER MODULE
+    // Handles all timing events with precision timestamps
+    // Structured for easy EEG marker integration
+    // ============================================================
+    const EventLogger = {
+        entries: [],
+        experimentStartTime: null,
+        
+        /**
+         * Initialize logger at experiment start
+         */
+        init() {
+            this.entries = [];
+            this.experimentStartTime = performance.now();
+            this.log('EXPERIMENT_START', { timestamp: Date.now() });
+        },
+        
+        /**
+         * Log an event with precise timing
+         * @param {string} eventType - Event type identifier
+         * @param {object} data - Additional event data
+         */
+        log(eventType, data = {}) {
+            const absoluteTime = performance.now();
+            const relativeTime = this.experimentStartTime 
+                ? absoluteTime - this.experimentStartTime 
+                : 0;
+            
+            const entry = {
+                eventType,
+                absoluteTime,
+                relativeTime,
+                ...data
+            };
+            
+            this.entries.push(entry);
+            
+            // Console output for debugging/external capture
+            console.log(`[EEG_EVENT] ${eventType}`, {
+                absoluteMs: absoluteTime.toFixed(3),
+                relativeMs: relativeTime.toFixed(3),
+                ...data
+            });
+            
+            // Update visual log
+            this.updateVisualLog(entry);
+            
+            // Send to LSL if connected
+            this.sendToLSL(entry);
+            
+            return entry;
+        },
+        
+        /**
+         * Log stimulus onset
+         */
+        logOnset(stimulusType, stimulusCode, trialNumber) {
+            const eventType = stimulusType === 'imagery' ? 'IMAGERY_ONSET' : 'STIM_ONSET';
+            return this.log(eventType, {
+                stimulusType,
+                stimulusCode,
+                trialNumber
+            });
+        },
+        
+        /**
+         * Log stimulus offset
+         */
+        logOffset(stimulusType, stimulusCode, trialNumber, duration) {
+            const eventType = stimulusType === 'imagery' ? 'IMAGERY_OFFSET' : 'STIM_OFFSET';
+            return this.log(eventType, {
+                stimulusType,
+                stimulusCode,
+                trialNumber,
+                actualDurationMs: duration.toFixed(3)
+            });
+        },
+        
+        /**
+         * Update the visual event log panel
+         */
+        updateVisualLog(entry) {
+            const logContainer = document.getElementById('log-entries');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            
+            if (entry.eventType.includes('ONSET')) {
+                div.classList.add('log-onset');
+            } else if (entry.eventType.includes('OFFSET')) {
+                div.classList.add('log-offset');
+            } else {
+                div.classList.add('log-system');
+            }
+            
+            const timeStr = entry.relativeTime.toFixed(1).padStart(8, ' ');
+            div.textContent = `[${timeStr}ms] ${entry.eventType} ${entry.stimulusCode || ''}`;
+            
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        },
+        
+        /**
+         * Export all logged events as JSON
+         */
+        export() {
+            return JSON.stringify(this.entries, null, 2);
+        },
+        
+        // --------------------------------------------------------
+        // LSL WEBSOCKET INTEGRATION
+        // --------------------------------------------------------
+        
+        lslSocket: null,
+        lslConnected: false,
+        lslEnabled: false,
+        
+        /**
+         * Connect to the LSL bridge via WebSocket
+         * @param {string} url - WebSocket URL (default: ws://localhost:8765)
+         * @returns {Promise<boolean>} - True if connected successfully
+         */
+        async connectLSL(url = 'ws://localhost:8765') {
+            return new Promise((resolve) => {
+                console.log(`[LSL] Connecting to ${url}...`);
+                this.updateLSLStatus('connecting');
+                
+                try {
+                    this.lslSocket = new WebSocket(url);
+                    
+                    this.lslSocket.onopen = () => {
+                        console.log('[LSL] Connected to bridge');
+                        this.lslConnected = true;
+                        this.lslEnabled = true;
+                        this.updateLSLStatus('connected');
+                        resolve(true);
+                    };
+                    
+                    this.lslSocket.onclose = (e) => {
+                        console.log(`[LSL] Disconnected (code: ${e.code})`);
+                        this.lslConnected = false;
+                        this.updateLSLStatus('disconnected');
+                    };
+                    
+                    this.lslSocket.onerror = (e) => {
+                        console.error('[LSL] Connection error:', e);
+                        this.lslConnected = false;
+                        this.updateLSLStatus('error');
+                        resolve(false);
+                    };
+                    
+                    this.lslSocket.onmessage = (e) => {
+                        // Handle acknowledgments from bridge
+                        try {
+                            const response = JSON.parse(e.data);
+                            if (response.lsl_timestamp) {
+                                // Update status with marker count periodically
+                                if (response.marker_count % 10 === 0) {
+                                    this.updateLSLStatus('connected', response.marker_count);
+                                }
+                            }
+                        } catch (err) {
+                            // Ignore parse errors
+                        }
+                    };
+                    
+                    // Timeout after 3 seconds
+                    setTimeout(() => {
+                        if (!this.lslConnected) {
+                            console.warn('[LSL] Connection timeout');
+                            this.updateLSLStatus('timeout');
+                            if (this.lslSocket) {
+                                this.lslSocket.close();
+                            }
+                            resolve(false);
+                        }
+                    }, 3000);
+                    
+                } catch (e) {
+                    console.error('[LSL] Failed to create WebSocket:', e);
+                    this.updateLSLStatus('error');
+                    resolve(false);
+                }
+            });
+        },
+        
+        /**
+         * Update LSL status display
+         */
+        updateLSLStatus(status, markerCount = null) {
+            const el = document.getElementById('lsl-status');
+            if (!el) return;
+            
+            switch (status) {
+                case 'connecting':
+                    el.textContent = 'LSL: Connecting...';
+                    el.style.color = '#ffaa00';
+                    break;
+                case 'connected':
+                    el.textContent = markerCount ? `LSL: ✓ (${markerCount})` : 'LSL: ✓ Connected';
+                    el.style.color = '#00ff00';
+                    break;
+                case 'disconnected':
+                    el.textContent = 'LSL: Disconnected';
+                    el.style.color = '#ff6600';
+                    break;
+                case 'error':
+                case 'timeout':
+                    el.textContent = 'LSL: ✗ Failed';
+                    el.style.color = '#ff0000';
+                    break;
+                default:
+                    el.textContent = 'LSL: --';
+                    el.style.color = '#666666';
+            }
+        },
+        
+        /**
+         * Disconnect from LSL bridge
+         */
+        disconnectLSL() {
+            if (this.lslSocket) {
+                this.lslSocket.close();
+                this.lslSocket = null;
+            }
+            this.lslConnected = false;
+            this.lslEnabled = false;
+            console.log('[LSL] Disconnected');
+        },
+        
+        /**
+         * Send event to LSL bridge
+         * @param {object} entry - Event entry to send
+         */
+        sendToLSL(entry) {
+            if (!this.lslEnabled || !this.lslConnected || !this.lslSocket) {
+                return;
+            }
+            
+            if (this.lslSocket.readyState !== WebSocket.OPEN) {
+                console.warn('[LSL] Socket not open, skipping marker');
+                return;
+            }
+            
+            try {
+                this.lslSocket.send(JSON.stringify(entry));
+            } catch (e) {
+                console.error('[LSL] Failed to send marker:', e);
+            }
+        }
+    };
+
+    // ============================================================
+    // STIMULUS FACTORY MODULE
+    // Creates and manages visual stimuli
+    // ============================================================
+    const StimulusFactory = {
+        /**
+         * Calculate stimulus size in scene units from visual angle
+         * @param {number} angleDegrees - Visual angle in degrees
+         * @param {number} viewingDistance - Distance from camera (default: cameraZ)
+         * @returns {number} Size in scene units
+         */
+        calculateSizeFromAngle(angleDegrees, viewingDistance = Config.scene.cameraZ) {
+            // tan(angle/2) = (size/2) / distance
+            // size = 2 * distance * tan(angle/2)
+            const angleRadians = (angleDegrees / 2) * (Math.PI / 180);
+            return 2 * viewingDistance * Math.tan(angleRadians);
+        },
+        
+        /**
+         * Create a color stimulus with configurable angular size
+         * @param {object} colorConfig - Color configuration from Config.colors
+         * @param {string|number} angularSize - 'full' or degrees (5, 7, 10, 33)
+         * @returns {THREE.Mesh|null} Mesh for angular stimuli, null for full-screen
+         */
+        createColorStimulus(colorConfig, angularSize = 'full') {
+            // Disable Three.js color management for accurate sRGB
+            THREE.ColorManagement.enabled = false;
+            
+            // Full screen: return null, we'll use scene.background
+            if (angularSize === 'full') {
+                return null;
+            }
+            
+            // Calculate size based on visual angle
+            const size = this.calculateSizeFromAngle(parseFloat(angularSize));
+            
+            // Create a circular stimulus (disc) for angular size control
+            const geometry = new THREE.CircleGeometry(size / 2, 64);
+            const material = new THREE.MeshBasicMaterial({
+                color: colorConfig.hex,
+                side: THREE.DoubleSide
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.z = 0; // At origin, camera will be at cameraZ
+            
+            mesh.userData = {
+                type: 'color',
+                config: colorConfig,
+                angularSize: angularSize
+            };
+            
+            return mesh;
+        },
+        
+        /**
+         * Create a full-screen color stimulus (legacy method)
+         * Uses a plane that fills the entire view
+         */
+        createFullScreenColorStimulus(colorConfig) {
+            // Disable Three.js color management for accurate sRGB
+            THREE.ColorManagement.enabled = false;
+            
+            const geometry = new THREE.PlaneGeometry(100, 100);
+            const material = new THREE.MeshBasicMaterial({
+                color: colorConfig.hex,
+                side: THREE.DoubleSide
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.z = -10; // Behind camera near plane
+            
+            mesh.userData = {
+                type: 'color',
+                config: colorConfig
+            };
+            
+            return mesh;
+        },
+        
+        /**
+         * Create a 3D primitive shape
+         */
+        createShapeStimulus(shapeType) {
+            let geometry;
+            
+            switch (shapeType) {
+                case 'SPHERE':
+                    geometry = new THREE.SphereGeometry(
+                        Config.scene.shapeScale, 
+                        32, 32  // Sufficient segments for smooth appearance
+                    );
+                    break;
+                    
+                case 'CUBE':
+                    geometry = new THREE.BoxGeometry(
+                        Config.scene.shapeScale * 1.6,
+                        Config.scene.shapeScale * 1.6,
+                        Config.scene.shapeScale * 1.6
+                    );
+                    break;
+                    
+                case 'PYRAMID':
+                    // Tetrahedron as pyramid
+                    geometry = new THREE.TetrahedronGeometry(
+                        Config.scene.shapeScale * 1.4
+                    );
+                    break;
+                    
+                case 'ICOSAHEDRON':
+                    geometry = new THREE.IcosahedronGeometry(
+                        Config.scene.shapeScale * 1.2
+                    );
+                    break;
+                    
+                default:
+                    console.warn(`Unknown shape type: ${shapeType}`);
+                    geometry = new THREE.SphereGeometry(1, 32, 32);
+            }
+            
+            // Simple material - no textures
+            const material = new THREE.MeshStandardMaterial({
+                color: Config.scene.shapeColor,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            mesh.userData = {
+                type: 'shape',
+                config: Config.shapes[shapeType],
+                rotationAxis: 'y',  // Rotate around Y only
+                rotationSpeed: 0   // Set by experiment controller
+            };
+            
+            return mesh;
+        },
+        
+        /**
+         * Create basic lighting setup
+         * Minimal complexity - just ambient + one directional
+         */
+        createLighting() {
+            const lights = [];
+            
+            // Ambient light for base illumination
+            const ambient = new THREE.AmbientLight(
+                0xffffff, 
+                Config.scene.ambientIntensity
+            );
+            lights.push(ambient);
+            
+            // Single directional light
+            const directional = new THREE.DirectionalLight(
+                0xffffff,
+                Config.scene.directionalIntensity
+            );
+            directional.position.set(5, 5, 5);
+            lights.push(directional);
+            
+            return lights;
+        }
+    };
+
+    // ============================================================
+    // EXPERIMENT CONTROLLER
+    // Main experiment state machine and timing control
+    // ============================================================
+    const ExperimentController = {
+        // State
+        isRunning: false,
+        isPaused: false,
+        currentTrialIndex: 0,
+        trialQueue: [],
+        
+        // Three.js objects
+        renderer: null,
+        scene: null,
+        camera: null,
+        currentStimulus: null,
+        vrButton: null,
+        instructionOverlay: null,
+        vrInstructionScreen: null,
+        vrTransitionScreen: null,
+        
+        // Timing
+        stimulusOnsetTime: null,
+        lastFrameTime: null,
+        scheduledTimeout: null,
+        
+        // Configuration (from UI)
+        config: {
+            protocolMode: 'visual',      // 'visual', 'imagery', or 'custom'
+            stimulusDuration: 300,       // ms
+            isiDuration: 2500,           // ms
+            repetitions: 30,
+            rotationSpeed: 0.5,
+            enableVR: false,
+            stimulusType: 'color',
+            angularSize: 7,              // visual degrees or 'full'
+            analysisWindow: 1000,        // ms post-onset for EEG
+            showImageryInstructions: true,
+            instructionDuration: 2000,   // ms
+            enableBreaks: true,          // Enable breaks between series
+            trialsPerSeries: 15,         // Number of trials before a break
+            
+            // Ganzfeld pre-experiment settings
+            enableGanzfeld: false,
+            ganzfeldColorDuration: 300,      // 5 minutes per color (seconds)
+            ganzfeldTransitionDuration: 15,  // 15 seconds HSV transition
+            ganzfeldBlackDuration: 60        // 1 minute black before trials
+        },
+        
+        // Break state
+        isOnBreak: false,
+        breakOverlay: null,
+        vrBreakScreen: null,
+        pollVRControllerForBreak: false,
+        xrSession: null,
+        
+        // Ganzfeld state
+        ganzfeldActive: false,
+        ganzfeldPhaseIndex: 0,
+        ganzfeldStartTime: null,
+        ganzfeldPhaseStartTime: null,
+        ganzfeldCurrentColor: null,
+        ganzfeldTargetColor: null,
+        ganzfeldTransitioning: false,
+        ganzfeldOverlay: null,
+        
+        /**
+         * Check if we are currently in VR mode
+         */
+        isInVRMode() {
+            const presenting = this.renderer?.xr?.isPresenting || false;
+            const hasSession = this.xrSession !== null;
+            const vrEnabled = this.config.enableVR;
+            console.log(`[VR CHECK] enableVR=${vrEnabled}, isPresenting=${presenting}, hasSession=${hasSession}`);
+            return vrEnabled && (presenting || hasSession);
+        },
+        
+        /**
+         * Initialize Three.js scene and renderer
+         */
+        initScene() {
+            const container = document.getElementById('canvas-container');
+            
+            // Remove any existing canvases (safety check)
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            
+            // Create renderer
+            this.renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                powerPreference: 'high-performance'
+            });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Disable automatic color space conversion for accurate colors
+            this.renderer.outputEncoding = THREE.LinearEncoding;
+            
+            container.appendChild(this.renderer.domElement);
+            
+            // Create scene
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(Config.neutralGray);
+            
+            // Create camera
+            this.camera = new THREE.PerspectiveCamera(
+                Config.scene.cameraFOV,
+                window.innerWidth / window.innerHeight,
+                Config.scene.cameraNear,
+                Config.scene.cameraFar
+            );
+            this.camera.position.z = Config.scene.cameraZ;
+            
+            // Add lighting (needed for 3D shapes)
+            const lights = StimulusFactory.createLighting();
+            lights.forEach(light => this.scene.add(light));
+            
+            // Set up event listeners (only once)
+            if (!this._listenersInitialized) {
+                this._resizeHandler = () => this.onWindowResize();
+                this._keyHandler = (e) => this.onKeyDown(e);
+                window.addEventListener('resize', this._resizeHandler);
+                window.addEventListener('keydown', this._keyHandler);
+                this._listenersInitialized = true;
+            }
+            
+            console.log('[INIT] Three.js scene initialized');
+        },
+        
+        /**
+         * Initialize WebXR if enabled
+         */
+        async initWebXR() {
+            if (!this.config.enableVR) return false;
+            
+            // Check WebXR support
+            if (!navigator.xr) {
+                console.warn('[WebXR] Not supported in this browser');
+                return false;
+            }
+            
+            const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
+            if (!isSupported) {
+                console.warn('[WebXR] Immersive VR not supported');
+                return false;
+            }
+            
+            // Enable XR on renderer
+            this.renderer.xr.enabled = true;
+            
+            // Create VR button
+            this.createVRButton();
+            
+            console.log('[WebXR] VR mode enabled');
+            return true;
+        },
+        
+        /**
+         * Create VR entry button (simplified VRButton)
+         */
+        createVRButton() {
+            const button = document.createElement('button');
+            button.id = 'vr-button';
+            button.textContent = 'ENTER VR';
+            button.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 15px 30px;
+                background: #2a2a5a;
+                border: 1px solid #4a4a8a;
+                color: #e0e0e0;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                cursor: pointer;
+                z-index: 1000;
+            `;
+            
+            button.onclick = async () => {
+                const session = await navigator.xr.requestSession('immersive-vr', {
+                    optionalFeatures: ['local-floor', 'bounded-floor']
+                });
+                
+                // Store session reference for controller input
+                this.xrSession = session;
+                
+                this.renderer.xr.setSession(session);
+                button.textContent = 'VR ACTIVE';
+                button.disabled = true;
+                
+                session.addEventListener('end', () => {
+                    this.xrSession = null;
+                    button.textContent = 'ENTER VR';
+                    button.disabled = false;
+                });
+                
+                // Log VR session start
+                console.log('[WebXR] VR session started, controller input enabled');
+            };
+            
+            document.body.appendChild(button);
+            this.vrButton = button;
+        },
+        
+        /**
+         * Build the trial queue based on experiment configuration
+         */
+        buildTrialQueue() {
+            this.trialQueue = [];
+            
+            if (this.config.stimulusType === 'color' || 
+                this.config.stimulusType === 'combined') {
+                // Add color trials
+                const colors = Object.values(Config.colors);
+                for (let rep = 0; rep < this.config.repetitions; rep++) {
+                    colors.forEach(color => {
+                        this.trialQueue.push({
+                            type: 'color',
+                            config: color
+                        });
+                    });
+                }
+            }
+            
+            if (this.config.stimulusType === 'shape' || 
+                this.config.stimulusType === 'combined') {
+                // Add shape trials
+                const shapes = Object.keys(Config.shapes);
+                for (let rep = 0; rep < this.config.repetitions; rep++) {
+                    shapes.forEach(shape => {
+                        this.trialQueue.push({
+                            type: 'shape',
+                            config: Config.shapes[shape],
+                            shapeName: shape
+                        });
+                    });
+                }
+            }
+            
+            console.log(`[QUEUE] Built ${this.trialQueue.length} trials`);
+        },
+        
+        /**
+         * Read configuration from UI
+         */
+        readConfigFromUI() {
+            this.config.protocolMode = document.getElementById('protocol-mode').value;
+            this.config.stimulusType = document.getElementById('stimulus-type').value;
+            this.config.stimulusDuration = parseInt(document.getElementById('stim-duration').value);
+            this.config.isiDuration = parseInt(document.getElementById('isi-duration').value);
+            this.config.repetitions = parseInt(document.getElementById('repetitions').value);
+            this.config.rotationSpeed = parseFloat(document.getElementById('rotation-speed').value);
+            this.config.enableVR = document.getElementById('enable-vr').checked;
+            this.config.enableLSL = document.getElementById('enable-lsl').checked;
+            
+            // Angular size configuration
+            const angularSizeValue = document.getElementById('angular-size').value;
+            this.config.angularSize = angularSizeValue === 'full' ? 'full' : parseFloat(angularSizeValue);
+            
+            // Analysis window
+            this.config.analysisWindow = parseInt(document.getElementById('analysis-window').value);
+            
+            // Mental imagery settings
+            this.config.showImageryInstructions = document.getElementById('show-imagery-instructions')?.checked || false;
+            this.config.instructionDuration = parseInt(document.getElementById('instruction-duration')?.value || 2000);
+            
+            // Break settings
+            this.config.enableBreaks = document.getElementById('enable-breaks')?.checked || false;
+            this.config.trialsPerSeries = parseInt(document.getElementById('trials-per-series')?.value || 15);
+            
+            // Audio settings
+            const enableAudio = document.getElementById('enable-audio')?.checked ?? true;
+            AudioManager.enabled = enableAudio;
+            
+            // Audio mode (beep or voice)
+            const audioModeRadio = document.querySelector('input[name="audio-mode"]:checked');
+            AudioManager.mode = audioModeRadio?.value || 'beep';
+            console.log('[CONFIG] Audio mode:', AudioManager.mode);
+            
+            // Ganzfeld settings
+            this.config.enableGanzfeld = document.getElementById('enable-ganzfeld')?.checked || false;
+            this.config.ganzfeldColorDuration = parseInt(document.getElementById('ganzfeld-color-duration')?.value || 300);
+            this.config.ganzfeldTransitionDuration = parseInt(document.getElementById('ganzfeld-transition-duration')?.value || 15);
+            this.config.ganzfeldBlackDuration = parseInt(document.getElementById('ganzfeld-black-duration')?.value || 60);
+            
+            // Update global config for tracking dots
+            Config.scene.showTrackingDots = document.getElementById('tracking-dots').checked;
+            
+            console.log(`[CONFIG] Protocol: ${this.config.protocolMode}, Angular size: ${this.config.angularSize}°`);
+            console.log(`[CONFIG] Breaks: ${this.config.enableBreaks}, Trials/series: ${this.config.trialsPerSeries}`);
+        },
+        
+        /**
+         * Start the experiment
+         */
+        async start() {
+            // Read configuration
+            this.readConfigFromUI();
+            
+            // Initialize scene
+            this.initScene();
+            
+            // Initialize WebXR if enabled
+            if (this.config.enableVR) {
+                await this.initWebXR();
+            }
+            
+            // Connect to LSL if enabled
+            if (this.config.enableLSL) {
+                const lslUrl = document.getElementById('lsl-url')?.value || 'ws://localhost:8765';
+                console.log('[LSL] Connecting to:', lslUrl);
+                const connected = await EventLogger.connectLSL(lslUrl);
+                if (!connected) {
+                    const proceed = confirm(
+                        'Could not connect to LSL bridge.\n\n' +
+                        'Make sure lsl_bridge.py is running:\n' +
+                        '  python bridges/lsl_bridge.py\n\n' +
+                        'Continue without LSL markers?'
+                    );
+                    if (!proceed) {
+                        this.cleanup();
+                        document.getElementById('control-panel').classList.remove('hidden');
+                        return;
+                    }
+                }
+            }
+            
+            // Hide control panel, show status
+            document.getElementById('control-panel').classList.add('hidden');
+            document.getElementById('status-overlay').style.display = 'block';
+            
+            // Initialize logger
+            EventLogger.init();
+            
+            // Start render loop (time, frame for WebXR)
+            this.lastFrameTime = performance.now();
+            this.renderer.setAnimationLoop((time, frame) => this.animate(time, frame));
+            
+            // Check if Ganzfeld is enabled
+            if (this.config.enableGanzfeld) {
+                // Calculate total Ganzfeld duration
+                const totalGanzfeldMins = Math.ceil(
+                    (4 * this.config.ganzfeldColorDuration + 
+                     3 * this.config.ganzfeldTransitionDuration + 
+                     this.config.ganzfeldBlackDuration) / 60
+                );
+                
+                console.log(`[EXPERIMENT] Starting with Ganzfeld protocol (~${totalGanzfeldMins} min)`);
+                
+                // Start Ganzfeld protocol first
+                this.isRunning = true;
+                this.startGanzfeld();
+            } else {
+                // Start main experiment directly
+                this.isRunning = true;
+                this.startMainExperiment();
+            }
+            
+            console.log('[EXPERIMENT] Started');
+        },
+        
+        /**
+         * Show inter-stimulus interval (neutral gray mask)
+         * Duration: 2-3s for visual stimuli to avoid persistence effects
+         */
+        showISI() {
+            // Clear any instruction overlay
+            this.clearInstructionOverlay();
+            
+            // Remove current stimulus properly
+            if (this.currentStimulus) {
+                if (this.currentStimulus.isMesh) {
+                    // Remove from scene
+                    this.scene.remove(this.currentStimulus);
+                    // Also remove from camera (VR mode)
+                    this.camera.remove(this.currentStimulus);
+                    
+                    // Dispose of tracking dot children if present
+                    if (this.currentStimulus.children) {
+                        this.currentStimulus.children.forEach(child => {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) child.material.dispose();
+                        });
+                    }
+                    
+                    // Dispose of main geometry/material
+                    if (this.currentStimulus.geometry) {
+                        this.currentStimulus.geometry.dispose();
+                    }
+                    if (this.currentStimulus.material) {
+                        this.currentStimulus.material.dispose();
+                    }
+                }
+                this.currentStimulus = null;
+            }
+            
+            // Set background to neutral gray (gray mask)
+            this.scene.background = new THREE.Color(Config.neutralGray);
+        },
+        
+        // ============================================================
+        // BREAK / PAUSE MANAGEMENT
+        // ============================================================
+        
+        /**
+         * Check if a break should occur after the current trial
+         */
+        shouldTakeBreak() {
+            if (!this.config.enableBreaks) return false;
+            if (this.currentTrialIndex === 0) return false;
+            if (this.currentTrialIndex >= this.trialQueue.length) return false;
+            
+            // Break after every trialsPerSeries trials
+            return (this.currentTrialIndex % this.config.trialsPerSeries) === 0;
+        },
+        
+        /**
+         * Show break screen with "press any key to continue"
+         */
+        showBreakScreen() {
+            this.isOnBreak = true;
+            
+            // Log break start
+            const seriesNumber = Math.floor(this.currentTrialIndex / this.config.trialsPerSeries);
+            const totalSeries = Math.ceil(this.trialQueue.length / this.config.trialsPerSeries);
+            
+            EventLogger.log('BREAK_START', {
+                trialIndex: this.currentTrialIndex,
+                seriesCompleted: seriesNumber,
+                totalSeries: totalSeries
+            });
+            
+            // Clear any existing overlay
+            this.clearBreakOverlay();
+            
+            // For VR mode: create 3D break screen in scene
+            if (this.isInVRMode()) {
+                this.showVRBreakScreen(seriesNumber, totalSeries);
+            }
+            
+            // Create HTML break overlay (visible on monitor/non-VR)
+            const overlay = document.createElement('div');
+            overlay.id = 'break-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 2000;
+                color: #ffffff;
+                font-family: 'Courier New', monospace;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="font-size: 32px; margin-bottom: 30px;">
+                    BREAK
+                </div>
+                <div style="font-size: 18px; margin-bottom: 20px; color: #a0a0a0;">
+                    Series ${seriesNumber} / ${totalSeries} completed
+                </div>
+                <div style="font-size: 18px; margin-bottom: 10px; color: #a0a0a0;">
+                    ${this.currentTrialIndex} / ${this.trialQueue.length} trials completed
+                </div>
+                <div style="margin-top: 40px; font-size: 20px; animation: pulse 2s infinite;">
+                    Press any key or<br>
+                    VR controller to continue
+                </div>
+                <style>
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.5; }
+                    }
+                </style>
+            `;
+            
+            document.body.appendChild(overlay);
+            this.breakOverlay = overlay;
+            
+            // Set up input listeners for break continuation
+            this.setupBreakInputListeners();
+            
+            // Update status
+            document.getElementById('trial-counter').textContent = 
+                `${this.currentTrialIndex}/${this.trialQueue.length} (pause)`;
+                
+            console.log(`[BREAK] Series ${seriesNumber} complete. Waiting for input...`);
+        },
+        
+        /**
+         * Create a VR-visible break screen using 3D canvas texture
+         */
+        showVRBreakScreen(seriesNumber, totalSeries) {
+            // Create a canvas to render text
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw border
+            ctx.strokeStyle = '#4a4a8a';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+            
+            // Draw text
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            
+            ctx.font = 'bold 48px Courier New';
+            ctx.fillText('PAUSE', canvas.width / 2, 100);
+            
+            ctx.font = '24px Courier New';
+            ctx.fillStyle = '#a0a0a0';
+            ctx.fillText(`Series ${seriesNumber} / ${totalSeries}`, canvas.width / 2, 180);
+            ctx.fillText(`${this.currentTrialIndex} / ${this.trialQueue.length} trials`, canvas.width / 2, 220);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '20px Courier New';
+            ctx.fillText('Press VR', canvas.width / 2, 320);
+            ctx.fillText('controller', canvas.width / 2, 350);
+            ctx.fillText('to continue', canvas.width / 2, 380);
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            // Create plane with texture
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
+            const breakPlane = new THREE.Mesh(geometry, material);
+            breakPlane.name = 'vr-break-screen';
+            
+            // Position in front of camera
+            breakPlane.position.set(0, 0, -3);
+            this.camera.add(breakPlane);
+            
+            if (!this.scene.children.includes(this.camera)) {
+                this.scene.add(this.camera);
+            }
+            
+            // Store reference for cleanup
+            this.vrBreakScreen = breakPlane;
+            
+            // Set dark background
+            this.scene.background = new THREE.Color(0x0a0a0a);
+        },
+        
+        /**
+         * Remove VR break screen
+         */
+        clearVRBreakScreen() {
+            if (this.vrBreakScreen) {
+                this.camera.remove(this.vrBreakScreen);
+                if (this.vrBreakScreen.geometry) this.vrBreakScreen.geometry.dispose();
+                if (this.vrBreakScreen.material) {
+                    if (this.vrBreakScreen.material.map) this.vrBreakScreen.material.map.dispose();
+                    this.vrBreakScreen.material.dispose();
+                }
+                this.vrBreakScreen = null;
+            }
+            
+            // Also remove by name in case reference was lost
+            const existingScreen = this.camera.getObjectByName('vr-break-screen');
+            if (existingScreen) {
+                this.camera.remove(existingScreen);
+            }
+        },
+        
+        /**
+         * Set up input listeners to continue from break
+         */
+        setupBreakInputListeners() {
+            // Keyboard listener
+            this._breakKeyHandler = (e) => {
+                if (this.isOnBreak) {
+                    e.preventDefault();
+                    this.continueFromBreak('keyboard');
+                }
+            };
+            window.addEventListener('keydown', this._breakKeyHandler);
+            
+            // Mouse/touch listener (for non-VR)
+            this._breakClickHandler = (e) => {
+                if (this.isOnBreak) {
+                    this.continueFromBreak('mouse');
+                }
+            };
+            if (this.breakOverlay) {
+                this.breakOverlay.addEventListener('click', this._breakClickHandler);
+            }
+            
+            // VR controller listener - poll in animation loop
+            if (this.isInVRMode()) {
+                this.pollVRControllerForBreak = true;
+            }
+        },
+        
+        /**
+         * Remove break input listeners
+         */
+        removeBreakInputListeners() {
+            if (this._breakKeyHandler) {
+                window.removeEventListener('keydown', this._breakKeyHandler);
+                this._breakKeyHandler = null;
+            }
+            if (this._breakClickHandler && this.breakOverlay) {
+                this.breakOverlay.removeEventListener('click', this._breakClickHandler);
+                this._breakClickHandler = null;
+            }
+            this.pollVRControllerForBreak = false;
+        },
+        
+        /**
+         * Clear break overlay (HTML and VR)
+         */
+        clearBreakOverlay() {
+            // Clear HTML overlay
+            if (this.breakOverlay) {
+                this.breakOverlay.remove();
+                this.breakOverlay = null;
+            }
+            const existing = document.getElementById('break-overlay');
+            if (existing) existing.remove();
+            
+            // Clear VR break screen
+            this.clearVRBreakScreen();
+        },
+        
+        /**
+         * Continue from break
+         */
+        continueFromBreak(inputSource = 'unknown') {
+            if (!this.isOnBreak) return;
+            
+            console.log(`[BREAK] Continuing from break (input: ${inputSource})`);
+            
+            // Log break end
+            EventLogger.log('BREAK_END', {
+                trialIndex: this.currentTrialIndex,
+                inputSource: inputSource
+            });
+            
+            // Clean up
+            this.isOnBreak = false;
+            this.removeBreakInputListeners();
+            this.clearBreakOverlay();
+            
+            // Resume experiment - show ISI then start next trial
+            this.showISI();
+            this.scheduledTimeout = setTimeout(
+                () => this.startNextTrial(), 
+                this.config.isiDuration
+            );
+        },
+        
+        /**
+         * Check VR controller input during break
+         * Called from animation loop
+         */
+        checkVRControllerInput(frame) {
+            if (!this.pollVRControllerForBreak || !this.isOnBreak) return;
+            if (!frame || !this.xrSession) return;
+            
+            try {
+                const inputSources = this.xrSession.inputSources;
+                
+                for (const inputSource of inputSources) {
+                    if (inputSource.gamepad) {
+                        const gamepad = inputSource.gamepad;
+                        
+                        // Check all buttons
+                        for (let i = 0; i < gamepad.buttons.length; i++) {
+                            if (gamepad.buttons[i].pressed) {
+                                this.continueFromBreak(`vr_controller_button_${i}`);
+                                return;
+                            }
+                        }
+                        
+                        // Check trigger (usually axis or button)
+                        if (gamepad.buttons[0]?.pressed || gamepad.buttons[1]?.pressed) {
+                            this.continueFromBreak('vr_trigger');
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Silently ignore XR input errors
+            }
+        },
+        
+        // ============================================================
+        // GANZFELD PROTOCOL
+        // Pre-experiment full-field color sequence for maximizing
+        // residual hallucinations before color decoding trials
+        // ============================================================
+        
+        /**
+         * Start the Ganzfeld pre-experiment protocol
+         */
+        startGanzfeld() {
+            console.log('[GANZFELD] Starting Ganzfeld protocol...');
+            
+            // Initialize audio
+            AudioManager.init();
+            
+            this.ganzfeldActive = true;
+            this.ganzfeldPhaseIndex = 0;
+            this.ganzfeldStartTime = performance.now();
+            this.ganzfeldTransitioning = false;
+            
+            // Log Ganzfeld start
+            EventLogger.log('GANZFELD_START', {
+                sequence: Config.ganzfeld.sequence.map(c => c.name),
+                colorDuration: this.config.ganzfeldColorDuration,
+                transitionDuration: this.config.ganzfeldTransitionDuration,
+                blackDuration: this.config.ganzfeldBlackDuration
+            });
+            
+            // Calculate total duration
+            const numColors = Config.ganzfeld.sequence.length;
+            const numTransitions = numColors - 2; // No transition before first or to black
+            const totalDuration = 
+                (numColors - 1) * this.config.ganzfeldColorDuration + // Color phases (not black)
+                numTransitions * this.config.ganzfeldTransitionDuration + // Transitions
+                this.config.ganzfeldBlackDuration; // Black phase
+            
+            console.log(`[GANZFELD] Total duration: ${Math.floor(totalDuration / 60)}m ${totalDuration % 60}s`);
+            
+            // Create Ganzfeld overlay
+            this.createGanzfeldOverlay();
+            
+            // Start first phase
+            this.startGanzfeldPhase(0);
+        },
+        
+        /**
+         * Create the Ganzfeld timer overlay
+         */
+        createGanzfeldOverlay() {
+            // Remove any existing overlay
+            this.clearGanzfeldOverlay();
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'ganzfeld-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: #ffffff;
+                padding: 15px 25px;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                z-index: 3000;
+                border-radius: 5px;
+                text-align: center;
+            `;
+            
+            overlay.innerHTML = `
+                <div id="ganzfeld-phase" style="font-size: 18px; margin-bottom: 8px;">GANZFELD</div>
+                <div id="ganzfeld-color" style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">ROUGE</div>
+                <div id="ganzfeld-timer" style="font-size: 32px; font-family: monospace;">00:00</div>
+                <div id="ganzfeld-total" style="font-size: 12px; color: #808080; margin-top: 5px;">Total: 00:00 / 26:01</div>
+            `;
+            
+            document.body.appendChild(overlay);
+            this.ganzfeldOverlay = overlay;
+        },
+        
+        /**
+         * Clear Ganzfeld overlay
+         */
+        clearGanzfeldOverlay() {
+            if (this.ganzfeldOverlay) {
+                this.ganzfeldOverlay.remove();
+                this.ganzfeldOverlay = null;
+            }
+            const existing = document.getElementById('ganzfeld-overlay');
+            if (existing) existing.remove();
+        },
+        
+        /**
+         * Start a specific Ganzfeld phase
+         */
+        startGanzfeldPhase(phaseIndex) {
+            const sequence = Config.ganzfeld.sequence;
+            
+            if (phaseIndex >= sequence.length) {
+                this.endGanzfeld();
+                return;
+            }
+            
+            this.ganzfeldPhaseIndex = phaseIndex;
+            this.ganzfeldPhaseStartTime = performance.now();
+            
+            const phase = sequence[phaseIndex];
+            const isBlackPhase = phase.name === 'NOIR';
+            const phaseDuration = isBlackPhase 
+                ? this.config.ganzfeldBlackDuration 
+                : this.config.ganzfeldColorDuration;
+            
+            // Set the color immediately
+            this.ganzfeldCurrentColor = { ...phase };
+            this.scene.background = new THREE.Color(phase.hex);
+            
+            // Log phase start
+            EventLogger.log('GANZFELD_PHASE', {
+                phase: phase.name,
+                phaseIndex: phaseIndex,
+                rgb: phase.rgb,
+                duration: phaseDuration
+            });
+            
+            console.log(`[GANZFELD] Phase ${phaseIndex + 1}/${sequence.length}: ${phase.name} (${phaseDuration}s)`);
+            
+            // Update overlay
+            this.updateGanzfeldOverlay(phase.name, phaseDuration);
+            
+            // Schedule next phase or transition
+            const nextPhaseIndex = phaseIndex + 1;
+            const nextPhase = sequence[nextPhaseIndex];
+            
+            if (nextPhase && !nextPhase.noTransition && !isBlackPhase) {
+                // Schedule transition to next color
+                this.scheduledTimeout = setTimeout(() => {
+                    this.startGanzfeldTransition(phaseIndex, nextPhaseIndex);
+                }, phaseDuration * 1000);
+            } else if (nextPhase) {
+                // Immediate transition (to black)
+                this.scheduledTimeout = setTimeout(() => {
+                    this.startGanzfeldPhase(nextPhaseIndex);
+                }, phaseDuration * 1000);
+            } else {
+                // End of Ganzfeld
+                this.scheduledTimeout = setTimeout(() => {
+                    this.endGanzfeld();
+                }, phaseDuration * 1000);
+            }
+        },
+        
+        /**
+         * Start HSV transition between two colors
+         */
+        startGanzfeldTransition(fromIndex, toIndex) {
+            const sequence = Config.ganzfeld.sequence;
+            const fromColor = sequence[fromIndex];
+            const toColor = sequence[toIndex];
+            
+            this.ganzfeldTransitioning = true;
+            this.ganzfeldPhaseStartTime = performance.now();
+            this.ganzfeldCurrentColor = { ...fromColor };
+            this.ganzfeldTargetColor = { ...toColor };
+            
+            // Log transition start
+            EventLogger.log('GANZFELD_TRANSITION', {
+                from: fromColor.name,
+                to: toColor.name,
+                duration: this.config.ganzfeldTransitionDuration
+            });
+            
+            console.log(`[GANZFELD] Transition: ${fromColor.name} → ${toColor.name} (${this.config.ganzfeldTransitionDuration}s)`);
+            
+            // Update overlay
+            if (this.ganzfeldOverlay) {
+                document.getElementById('ganzfeld-color').textContent = `${fromColor.name} → ${toColor.name}`;
+                document.getElementById('ganzfeld-phase').textContent = 'TRANSITION';
+            }
+            
+            // Schedule end of transition
+            this.scheduledTimeout = setTimeout(() => {
+                this.ganzfeldTransitioning = false;
+                this.startGanzfeldPhase(toIndex);
+            }, this.config.ganzfeldTransitionDuration * 1000);
+        },
+        
+        /**
+         * Update Ganzfeld display during animation loop
+         */
+        updateGanzfeldAnimation(deltaTime) {
+            if (!this.ganzfeldActive) return;
+            
+            const now = performance.now();
+            const phaseElapsed = (now - this.ganzfeldPhaseStartTime) / 1000;
+            const totalElapsed = (now - this.ganzfeldStartTime) / 1000;
+            
+            // Handle HSV transition
+            if (this.ganzfeldTransitioning && this.ganzfeldCurrentColor && this.ganzfeldTargetColor) {
+                const progress = Math.min(phaseElapsed / this.config.ganzfeldTransitionDuration, 1);
+                const interpolatedColor = this.interpolateHSV(
+                    this.ganzfeldCurrentColor.hsv,
+                    this.ganzfeldTargetColor.hsv,
+                    progress
+                );
+                this.scene.background = new THREE.Color().setHSL(
+                    interpolatedColor[0] / 360,
+                    interpolatedColor[1] / 100,
+                    interpolatedColor[2] / 200 // V to L conversion approximation
+                );
+            }
+            
+            // Update timer overlay
+            this.updateGanzfeldTimer(phaseElapsed, totalElapsed);
+        },
+        
+        /**
+         * Interpolate between two HSV colors
+         */
+        interpolateHSV(hsv1, hsv2, t) {
+            // Handle hue wrapping (shortest path)
+            let h1 = hsv1[0], h2 = hsv2[0];
+            let dh = h2 - h1;
+            
+            if (Math.abs(dh) > 180) {
+                if (dh > 0) {
+                    h1 += 360;
+                } else {
+                    h2 += 360;
+                }
+            }
+            
+            const h = ((1 - t) * h1 + t * h2) % 360;
+            const s = (1 - t) * hsv1[1] + t * hsv2[1];
+            const v = (1 - t) * hsv1[2] + t * hsv2[2];
+            
+            return [h, s, v];
+        },
+        
+        /**
+         * Update the Ganzfeld timer display
+         */
+        updateGanzfeldTimer(phaseElapsed, totalElapsed) {
+            if (!this.ganzfeldOverlay) return;
+            
+            const sequence = Config.ganzfeld.sequence;
+            const currentPhase = sequence[this.ganzfeldPhaseIndex];
+            const isBlackPhase = currentPhase?.name === 'NOIR';
+            const phaseDuration = isBlackPhase 
+                ? this.config.ganzfeldBlackDuration 
+                : (this.ganzfeldTransitioning 
+                    ? this.config.ganzfeldTransitionDuration 
+                    : this.config.ganzfeldColorDuration);
+            
+            const phaseRemaining = Math.max(0, phaseDuration - phaseElapsed);
+            
+            // Format time as MM:SS
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+            
+            // Calculate total duration
+            const numColors = sequence.length;
+            const numTransitions = numColors - 2;
+            const totalDuration = 
+                (numColors - 1) * this.config.ganzfeldColorDuration +
+                numTransitions * this.config.ganzfeldTransitionDuration +
+                this.config.ganzfeldBlackDuration;
+            
+            const timerEl = document.getElementById('ganzfeld-timer');
+            const totalEl = document.getElementById('ganzfeld-total');
+            
+            if (timerEl) timerEl.textContent = formatTime(phaseRemaining);
+            if (totalEl) totalEl.textContent = `Total: ${formatTime(totalElapsed)} / ${formatTime(totalDuration)}`;
+        },
+        
+        /**
+         * Update Ganzfeld overlay for new phase
+         */
+        updateGanzfeldOverlay(colorName, duration) {
+            if (!this.ganzfeldOverlay) return;
+            
+            const phaseEl = document.getElementById('ganzfeld-phase');
+            const colorEl = document.getElementById('ganzfeld-color');
+            
+            if (phaseEl) phaseEl.textContent = colorName === 'BLACK' ? 'REST' : 'GANZFELD';
+            if (colorEl) {
+                colorEl.textContent = colorName;
+                // Set text color for contrast
+                colorEl.style.color = colorName === 'NOIR' ? '#ffffff' : '#000000';
+                colorEl.style.textShadow = colorName === 'NOIR' ? 'none' : '0 0 10px rgba(255,255,255,0.8)';
+            }
+        },
+        
+        /**
+         * End the Ganzfeld protocol and start main experiment
+         */
+        endGanzfeld() {
+            console.log('[GANZFELD] Protocol complete. Starting color trials...');
+            
+            // Log Ganzfeld end
+            const totalDuration = (performance.now() - this.ganzfeldStartTime) / 1000;
+            EventLogger.log('GANZFELD_END', {
+                totalDuration: totalDuration.toFixed(1),
+                timestamp: Date.now()
+            });
+            
+            // Clean up
+            this.ganzfeldActive = false;
+            this.ganzfeldTransitioning = false;
+            this.clearGanzfeldOverlay();
+            
+            // Brief pause then start main experiment
+            this.scene.background = new THREE.Color(Config.neutralGray);
+            
+            // Show transition message
+            this.showGanzfeldTransitionMessage();
+            
+            // Start main experiment after brief delay
+            this.scheduledTimeout = setTimeout(() => {
+                this.clearGanzfeldTransitionMessage();
+                this.startMainExperiment();
+            }, 3000);
+        },
+        
+        /**
+         * Show message between Ganzfeld and main experiment
+         */
+        showGanzfeldTransitionMessage() {
+            // For VR mode: use 3D canvas texture
+            if (this.isInVRMode()) {
+                this.showVRTransitionMessage('GANZFELD COMPLETE', 'Starting color trials...');
+                return;
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'ganzfeld-transition-msg';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                color: #00ff00;
+                padding: 40px 60px;
+                font-family: 'Courier New', monospace;
+                font-size: 24px;
+                z-index: 3000;
+                text-align: center;
+                border: 2px solid #00ff00;
+            `;
+            overlay.innerHTML = `
+                <div style="margin-bottom: 20px;">GANZFELD COMPLETE</div>
+                <div style="font-size: 18px; color: #a0a0a0;">Starting color trials...</div>
+            `;
+            document.body.appendChild(overlay);
+        },
+        
+        /**
+         * Show VR-visible transition message using 3D canvas texture
+         */
+        showVRTransitionMessage(title, subtitle) {
+            // Clear any existing
+            this.clearVRTransitionMessage();
+            
+            // Create a canvas to render text
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw border
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+            
+            // Draw title
+            ctx.fillStyle = '#00ff00';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 42px Courier New';
+            ctx.fillText(title, canvas.width / 2, 220);
+            
+            // Draw subtitle
+            ctx.fillStyle = '#a0a0a0';
+            ctx.font = '24px Courier New';
+            ctx.fillText(subtitle, canvas.width / 2, 300);
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            // Create plane with texture
+            const geometry = new THREE.PlaneGeometry(2.5, 2.5);
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
+            const transitionPlane = new THREE.Mesh(geometry, material);
+            transitionPlane.name = 'vr-transition-screen';
+            
+            // Position in front of camera
+            transitionPlane.position.set(0, 0, -3);
+            this.camera.add(transitionPlane);
+            
+            if (!this.scene.children.includes(this.camera)) {
+                this.scene.add(this.camera);
+            }
+            
+            // Store reference for cleanup
+            this.vrTransitionScreen = transitionPlane;
+        },
+        
+        /**
+         * Clear VR transition message
+         */
+        clearVRTransitionMessage() {
+            if (this.vrTransitionScreen) {
+                this.camera.remove(this.vrTransitionScreen);
+                if (this.vrTransitionScreen.geometry) this.vrTransitionScreen.geometry.dispose();
+                if (this.vrTransitionScreen.material) {
+                    if (this.vrTransitionScreen.material.map) this.vrTransitionScreen.material.map.dispose();
+                    this.vrTransitionScreen.material.dispose();
+                }
+                this.vrTransitionScreen = null;
+            }
+        },
+        
+        /**
+         * Clear Ganzfeld transition message (both DOM and VR)
+         */
+        clearGanzfeldTransitionMessage() {
+            // Clear DOM version
+            const el = document.getElementById('ganzfeld-transition-msg');
+            if (el) el.remove();
+            
+            // Clear VR version
+            this.clearVRTransitionMessage();
+        },
+        
+        /**
+         * Start the main experiment (after Ganzfeld if enabled)
+         */
+        startMainExperiment() {
+            console.log('[EXPERIMENT] startMainExperiment() called');
+            console.log('[EXPERIMENT] Config:', JSON.stringify(this.config, null, 2));
+            
+            // Initialize audio (user has already interacted by clicking start)
+            AudioManager.init();
+            
+            // Initialize logger (if not already done by Ganzfeld)
+            if (!this.ganzfeldActive) {
+                EventLogger.init();
+            }
+            
+            EventLogger.log('EXPERIMENT_START', {
+                afterGanzfeld: this.config.enableGanzfeld,
+                timestamp: Date.now()
+            });
+            
+            // Build trial queue
+            this.buildTrialQueue();
+            console.log('[EXPERIMENT] Trial queue length:', this.trialQueue.length);
+            
+            if (this.trialQueue.length === 0) {
+                console.error('[EXPERIMENT] ERROR: No trials in queue!');
+                alert('Error: No trials created. Check stimulus type configuration.');
+                return;
+            }
+            
+            // Start experiment
+            this.isRunning = true;
+            this.currentTrialIndex = 0;
+            
+            // Initial ISI before first stimulus
+            console.log('[EXPERIMENT] Showing ISI for', this.config.isiDuration, 'ms');
+            this.showISI();
+            this.scheduledTimeout = setTimeout(() => {
+                console.log('[EXPERIMENT] ISI complete, starting first trial');
+                this.startNextTrial();
+            }, this.config.isiDuration);
+            
+            // Update status display
+            document.getElementById('trial-counter').textContent = 
+                `0/${this.trialQueue.length}`;
+            
+            console.log('[EXPERIMENT] Main experiment started, waiting for ISI...');
+        },
+        
+        /**
+         * Show instruction text for mental imagery
+         */
+        showImageryInstruction(colorConfig) {
+            // Clear any existing instruction
+            this.clearInstructionOverlay();
+            
+            // For VR mode: use 3D canvas texture
+            if (this.isInVRMode()) {
+                this.showVRImageryInstruction(colorConfig);
+                return;
+            }
+            
+            // Create instruction overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'imagery-instruction-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: #ffffff;
+                font-family: 'Courier New', monospace;
+                font-size: 24px;
+                text-align: center;
+                z-index: 1000;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            `;
+            
+            overlay.innerHTML = `
+                <div style="margin-bottom: 20px;">Visualize the color:</div>
+                <div style="font-size: 36px; font-weight: bold; color: #${colorConfig.hex.toString(16).padStart(6, '0')};">
+                    ${colorConfig.name}
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            this.instructionOverlay = overlay;
+        },
+        
+        /**
+         * Show VR-visible instruction using 3D canvas texture
+         */
+        showVRImageryInstruction(colorConfig) {
+            // Create a canvas to render text
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background (dark gray)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw border
+            ctx.strokeStyle = '#4a4a8a';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+            
+            // Draw instruction text
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            
+            ctx.font = '28px Courier New';
+            ctx.fillText('Visualize the color:', canvas.width / 2, 180);
+            
+            // Draw color name with actual color
+            const hexColor = '#' + colorConfig.hex.toString(16).padStart(6, '0');
+            ctx.fillStyle = hexColor;
+            ctx.font = 'bold 56px Courier New';
+            ctx.fillText(colorConfig.name.toUpperCase(), canvas.width / 2, 280);
+            
+            // Draw hint
+            ctx.fillStyle = '#808080';
+            ctx.font = '20px Courier New';
+            ctx.fillText('Close your eyes and imagine', canvas.width / 2, 380);
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            // Create plane with texture
+            const geometry = new THREE.PlaneGeometry(2.5, 2.5);
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
+            const instructionPlane = new THREE.Mesh(geometry, material);
+            instructionPlane.name = 'vr-instruction-screen';
+            
+            // Position in front of camera
+            instructionPlane.position.set(0, 0, -3);
+            this.camera.add(instructionPlane);
+            
+            if (!this.scene.children.includes(this.camera)) {
+                this.scene.add(this.camera);
+            }
+            
+            // Store reference for cleanup
+            this.vrInstructionScreen = instructionPlane;
+            
+            // Set dark background
+            this.scene.background = new THREE.Color(0x1a1a1a);
+        },
+        
+        /**
+         * Clear instruction overlay (both DOM and VR)
+         */
+        clearInstructionOverlay() {
+            // Clear DOM overlay
+            if (this.instructionOverlay) {
+                this.instructionOverlay.remove();
+                this.instructionOverlay = null;
+            }
+            const existing = document.getElementById('imagery-instruction-overlay');
+            if (existing) existing.remove();
+            
+            // Clear VR instruction screen
+            if (this.vrInstructionScreen) {
+                this.camera.remove(this.vrInstructionScreen);
+                if (this.vrInstructionScreen.geometry) this.vrInstructionScreen.geometry.dispose();
+                if (this.vrInstructionScreen.material) {
+                    if (this.vrInstructionScreen.material.map) this.vrInstructionScreen.material.map.dispose();
+                    this.vrInstructionScreen.material.dispose();
+                }
+                this.vrInstructionScreen = null;
+            }
+        },
+        
+        /**
+         * Start the next trial
+         */
+        startNextTrial() {
+            console.log('[TRIAL] startNextTrial() called, index:', this.currentTrialIndex);
+            
+            if (!this.isRunning || this.isPaused) {
+                console.log('[TRIAL] Not running or paused, returning');
+                return;
+            }
+            
+            if (this.currentTrialIndex >= this.trialQueue.length) {
+                console.log('[TRIAL] All trials complete, ending experiment');
+                this.endExperiment();
+                return;
+            }
+            
+            const trial = this.trialQueue[this.currentTrialIndex];
+            console.log('[TRIAL] Trial:', trial.type, trial.config?.name || trial.shapeName);
+            
+            // For mental imagery mode: show instruction first, then stimulus phase
+            if (this.config.protocolMode === 'imagery' && 
+                this.config.showImageryInstructions && 
+                trial.type === 'color') {
+                console.log('[TRIAL] Starting IMAGERY trial');
+                this.startImageryTrial(trial);
+                return;
+            }
+            
+            // Create stimulus directly for visual mode
+            console.log('[TRIAL] Starting VISUAL trial');
+            if (trial.type === 'color') {
+                console.log('[TRIAL] Showing color:', trial.config.name);
+                this.showColorStimulus(trial.config);
+            } else if (trial.type === 'shape') {
+                console.log('[TRIAL] Showing shape:', trial.shapeName);
+                this.showShapeStimulus(trial.shapeName);
+            }
+            
+            // Log onset
+            this.stimulusOnsetTime = performance.now();
+            EventLogger.logOnset(
+                trial.type,
+                trial.config.code,
+                this.currentTrialIndex + 1
+            );
+            
+            // Update status display
+            document.getElementById('trial-counter').textContent = 
+                `${this.currentTrialIndex + 1}/${this.trialQueue.length}`;
+            
+            // Schedule offset
+            this.scheduledTimeout = setTimeout(() => this.endCurrentTrial(), this.config.stimulusDuration);
+        },
+        
+        /**
+         * Start a mental imagery trial with instruction phase
+         */
+        startImageryTrial(trial) {
+            // Show gray background with instruction
+            this.scene.background = new THREE.Color(Config.neutralGray);
+            this.showImageryInstruction(trial.config);
+            
+            // Play audio cue (beep or voice saying color name)
+            AudioManager.playCue(trial.config.name);
+            
+            // Log instruction onset
+            EventLogger.log('INSTRUCTION_ONSET', {
+                stimulusType: trial.type,
+                stimulusCode: trial.config.code,
+                trialNumber: this.currentTrialIndex + 1,
+                audioMode: AudioManager.mode
+            });
+            
+            // Update status display
+            document.getElementById('trial-counter').textContent = 
+                `${this.currentTrialIndex + 1}/${this.trialQueue.length} (instruction)`;
+            
+            // After instruction duration, start imagery phase
+            this.scheduledTimeout = setTimeout(() => {
+                this.clearInstructionOverlay();
+                
+                // Log instruction offset and imagery onset
+                EventLogger.log('INSTRUCTION_OFFSET', {
+                    stimulusType: trial.type,
+                    stimulusCode: trial.config.code,
+                    trialNumber: this.currentTrialIndex + 1
+                });
+                
+                // Keep gray screen for mental imagery (no physical stimulus)
+                this.scene.background = new THREE.Color(Config.neutralGray);
+                
+                // Store reference for logging
+                this.currentStimulus = { 
+                    userData: { 
+                        type: 'imagery', 
+                        config: trial.config 
+                    } 
+                };
+                
+                // Log imagery onset
+                this.stimulusOnsetTime = performance.now();
+                EventLogger.logOnset(
+                    'imagery',
+                    trial.config.code,
+                    this.currentTrialIndex + 1
+                );
+                
+                // Update status
+                document.getElementById('trial-counter').textContent = 
+                    `${this.currentTrialIndex + 1}/${this.trialQueue.length} (imagery)`;
+                
+                // Schedule imagery offset
+                this.scheduledTimeout = setTimeout(() => this.endCurrentTrial(), this.config.stimulusDuration);
+                
+            }, this.config.instructionDuration);
+        },
+        
+        /**
+         * Show a color stimulus with angular size control
+         */
+        showColorStimulus(colorConfig) {
+            const angularSize = this.config.angularSize;
+            console.log('[STIMULUS] showColorStimulus:', colorConfig.name, 'hex:', colorConfig.hex.toString(16), 'angularSize:', angularSize);
+            
+            if (angularSize === 'full') {
+                // Full screen: use background color
+                console.log('[STIMULUS] Setting FULL SCREEN background color');
+                this.scene.background = new THREE.Color(colorConfig.hex);
+                
+                // Store reference for logging
+                this.currentStimulus = { 
+                    userData: { 
+                        type: 'color', 
+                        config: colorConfig,
+                        angularSize: 'full'
+                    } 
+                };
+            } else {
+                // Angular size controlled: create circular stimulus on gray background
+                this.scene.background = new THREE.Color(Config.neutralGray);
+                
+                const stimulus = StimulusFactory.createColorStimulus(colorConfig, angularSize);
+                if (stimulus) {
+                    this.scene.add(stimulus);
+                    this.currentStimulus = stimulus;
+                }
+            }
+        },
+        
+        /**
+         * Show a 3D shape stimulus
+         */
+        showShapeStimulus(shapeName) {
+            // Set background to black for shape viewing (better contrast)
+            this.scene.background = new THREE.Color(Config.scene.shapeBackground);
+            
+            // Create shape
+            const shape = StimulusFactory.createShapeStimulus(shapeName);
+            shape.userData.rotationSpeed = this.config.rotationSpeed;
+            
+            // Add tracking dots if enabled
+            if (Config.scene.showTrackingDots) {
+                this.addTrackingDots(shape);
+            }
+            
+            // For VR: parent to camera to keep head-locked
+            if (this.config.enableVR && this.renderer.xr.isPresenting) {
+                // In VR, position relative to camera
+                shape.position.set(0, 0, -3);
+                this.camera.add(shape);
+                this.scene.add(this.camera);
+            } else {
+                // Desktop: center in scene
+                shape.position.set(0, 0, 0);
+                this.scene.add(shape);
+            }
+            
+            this.currentStimulus = shape;
+        },
+        
+        /**
+         * Add tracking dots to a shape for rotation visualization
+         * These are small black spheres at cardinal points
+         */
+        addTrackingDots(shape) {
+            const dotGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            // Get bounding sphere to place dots at surface
+            shape.geometry.computeBoundingSphere();
+            const radius = shape.geometry.boundingSphere.radius * 0.95;
+            
+            // Add dots at key positions
+            const positions = [
+                [radius, 0, 0],      // +X
+                [-radius, 0, 0],     // -X
+                [0, radius, 0],      // +Y
+                [0, -radius, 0],     // -Y
+                [0, 0, radius],      // +Z
+                [0, 0, -radius]      // -Z
+            ];
+            
+            positions.forEach(pos => {
+                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                dot.position.set(...pos);
+                shape.add(dot);  // Parent to shape so dots rotate with it
+            });
+        },
+        
+        /**
+         * End the current trial
+         */
+        endCurrentTrial() {
+            if (!this.isRunning || !this.currentStimulus) return;
+            
+            const trial = this.trialQueue[this.currentTrialIndex];
+            const duration = performance.now() - this.stimulusOnsetTime;
+            
+            // Determine stimulus type for logging (handle imagery mode)
+            const stimType = this.currentStimulus.userData?.type === 'imagery' 
+                ? 'imagery' 
+                : trial.type;
+            
+            // Play soft beep at END of imagery trial (signal to stop visualizing)
+            if (stimType === 'imagery') {
+                // Log beep marker FIRST (for precise EEG timing)
+                EventLogger.log('IMAGERY_BEEP', {
+                    stimulusCode: trial.config.code,
+                    trialNumber: this.currentTrialIndex + 1
+                });
+                AudioManager.softBeep();
+            }
+            
+            // Log offset
+            EventLogger.logOffset(
+                stimType,
+                trial.config.code,
+                this.currentTrialIndex + 1,
+                duration
+            );
+            
+            // Show ISI (gray mask)
+            this.showISI();
+            
+            // Advance to next trial
+            this.currentTrialIndex++;
+            
+            // Check if we need a break before the next trial
+            if (this.shouldTakeBreak()) {
+                // Show break screen instead of scheduling next trial
+                this.scheduledTimeout = setTimeout(
+                    () => this.showBreakScreen(), 
+                    500  // Small delay before showing break
+                );
+            } else {
+                // Schedule next trial after ISI (gray mask duration)
+                this.scheduledTimeout = setTimeout(
+                    () => this.startNextTrial(), 
+                    this.config.isiDuration
+                );
+            }
+        },
+        
+        /**
+         * Animation loop
+         */
+        animate(time, frame) {
+            if (!this.isRunning) return;
+            
+            // Calculate delta time for consistent rotation
+            const deltaTime = (time - this.lastFrameTime) / 1000;
+            this.lastFrameTime = time;
+            
+            // Update elapsed time display
+            if (EventLogger.experimentStartTime) {
+                const elapsed = (time - EventLogger.experimentStartTime) / 1000;
+                document.getElementById('elapsed-time').textContent = elapsed.toFixed(2);
+            }
+            
+            // Update Ganzfeld animation (HSV transitions)
+            if (this.ganzfeldActive) {
+                this.updateGanzfeldAnimation(deltaTime);
+            }
+            
+            // Check VR controller input during breaks
+            if (this.isOnBreak && this.pollVRControllerForBreak && frame) {
+                this.checkVRControllerInput(frame);
+            }
+            
+            // Rotate shape if present
+            if (this.currentStimulus && 
+                this.currentStimulus.userData && 
+                this.currentStimulus.userData.type === 'shape') {
+                
+                const speed = this.currentStimulus.userData.rotationSpeed;
+                this.currentStimulus.rotation.y += speed * deltaTime;
+            }
+            
+            // Render
+            this.renderer.render(this.scene, this.camera);
+        },
+        
+        /**
+         * End the experiment
+         */
+        endExperiment() {
+            this.isRunning = false;
+            
+            // Clear any pending timeouts
+            if (this.scheduledTimeout) {
+                clearTimeout(this.scheduledTimeout);
+                this.scheduledTimeout = null;
+            }
+            
+            EventLogger.log('EXPERIMENT_END', {
+                totalTrials: this.trialQueue.length,
+                completedTrials: this.currentTrialIndex
+            });
+            
+            // Stop render loop
+            if (this.renderer) {
+                this.renderer.setAnimationLoop(null);
+            }
+            
+            // Export log to console
+            console.log('=== EXPERIMENT LOG ===');
+            console.log(EventLogger.export());
+            
+            // Show completion message
+            alert('Experiment complete!\n\nCheck console for event log export.');
+            
+            // Clean up and reset for potential re-run
+            this.cleanup();
+            
+            // Reset UI
+            document.getElementById('control-panel').classList.remove('hidden');
+            document.getElementById('status-overlay').style.display = 'none';
+        },
+        
+        /**
+         * Clean up Three.js resources for re-run
+         */
+        cleanup() {
+            console.log('[CLEANUP] Starting cleanup...');
+            
+            // Stop any running animation loop first
+            if (this.renderer) {
+                this.renderer.setAnimationLoop(null);
+            }
+            
+            // Clear any pending timeouts
+            if (this.scheduledTimeout) {
+                clearTimeout(this.scheduledTimeout);
+                this.scheduledTimeout = null;
+            }
+            
+            // Remove current stimulus with full disposal
+            if (this.currentStimulus) {
+                if (this.currentStimulus.isMesh) {
+                    this.scene?.remove(this.currentStimulus);
+                    this.camera?.remove(this.currentStimulus);
+                    
+                    // Dispose children (tracking dots)
+                    this.currentStimulus.children.forEach(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose();
+                    });
+                    
+                    if (this.currentStimulus.geometry) {
+                        this.currentStimulus.geometry.dispose();
+                    }
+                    if (this.currentStimulus.material) {
+                        this.currentStimulus.material.dispose();
+                    }
+                }
+                this.currentStimulus = null;
+            }
+            
+            // Clear camera children
+            if (this.camera) {
+                while (this.camera.children.length > 0) {
+                    const child = this.camera.children[0];
+                    this.camera.remove(child);
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            }
+            
+            // Dispose of all scene objects
+            if (this.scene) {
+                while (this.scene.children.length > 0) {
+                    const obj = this.scene.children[0];
+                    this.scene.remove(obj);
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) obj.material.dispose();
+                }
+            }
+            
+            // Dispose of renderer and remove canvas
+            if (this.renderer) {
+                this.renderer.dispose();
+                const canvas = this.renderer.domElement;
+                if (canvas && canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
+            }
+            
+            // Remove VR button if present
+            if (this.vrButton && this.vrButton.parentNode) {
+                this.vrButton.parentNode.removeChild(this.vrButton);
+                this.vrButton = null;
+            }
+            
+            // Null out Three.js objects
+            this.renderer = null;
+            this.scene = null;
+            this.camera = null;
+            
+            // Reset experiment state
+            this.isRunning = false;
+            this.isPaused = false;
+            this.currentTrialIndex = 0;
+            this.trialQueue = [];
+            this.stimulusOnsetTime = null;
+            this.lastFrameTime = null;
+            
+            // Clear any instruction overlay
+            this.clearInstructionOverlay();
+            
+            // Clear break overlay and state
+            this.clearBreakOverlay();
+            this.removeBreakInputListeners();
+            this.isOnBreak = false;
+            this.pollVRControllerForBreak = false;
+            this.xrSession = null;
+            
+            // Clear Ganzfeld state
+            this.clearGanzfeldOverlay();
+            this.clearGanzfeldTransitionMessage();
+            this.ganzfeldActive = false;
+            this.ganzfeldTransitioning = false;
+            this.ganzfeldPhaseIndex = 0;
+            this.ganzfeldStartTime = null;
+            this.ganzfeldCurrentColor = null;
+            this.ganzfeldTargetColor = null;
+            
+            // Disconnect LSL
+            EventLogger.disconnectLSL();
+            
+            // Clear event log display
+            document.getElementById('log-entries').innerHTML = '';
+            
+            console.log('[CLEANUP] Complete - ready for re-run');
+        },
+        
+        /**
+         * Handle window resize
+         */
+        onWindowResize() {
+            if (!this.camera || !this.renderer) return;
+            
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        },
+        
+        /**
+         * Handle keyboard input
+         */
+        onKeyDown(event) {
+            switch (event.code) {
+                case 'Space':
+                    // Pause/Resume
+                    if (this.isRunning) {
+                        this.isPaused = !this.isPaused;
+                        EventLogger.log(this.isPaused ? 'PAUSE' : 'RESUME');
+                        console.log(this.isPaused ? '[PAUSED]' : '[RESUMED]');
+                    }
+                    event.preventDefault();
+                    break;
+                    
+                case 'Escape':
+                    // Abort experiment
+                    if (this.isRunning) {
+                        EventLogger.log('ABORT', { 
+                            reason: 'user_escape',
+                            trialIndex: this.currentTrialIndex 
+                        });
+                        this.endExperiment();
+                    }
+                    break;
+                    
+                case 'KeyN':
+                    // Skip to next stimulus (for testing)
+                    if (this.isRunning && !this.isPaused) {
+                        EventLogger.log('SKIP', { 
+                            trialIndex: this.currentTrialIndex 
+                        });
+                        this.endCurrentTrial();
+                    }
+                    break;
+            }
+        }
+    };
+
+    // ============================================================
+    // UI EVENT HANDLERS
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        // Protocol mode change handler
+        const protocolModeSelect = document.getElementById('protocol-mode');
+        const stimulusTypeSelect = document.getElementById('stimulus-type');
+        const stimDurationInput = document.getElementById('stim-duration');
+        const isiDurationInput = document.getElementById('isi-duration');
+        const repetitionsInput = document.getElementById('repetitions');
+        const angularSizeSelect = document.getElementById('angular-size');
+        const analysisWindowInput = document.getElementById('analysis-window');
+        const trialsPerSeriesInput = document.getElementById('trials-per-series');
+        const enableBreaksCheckbox = document.getElementById('enable-breaks');
+        const protocolDescription = document.getElementById('protocol-description');
+        const imagerySettings = document.getElementById('imagery-settings');
+        const stimDurationHint = document.getElementById('stim-duration-hint');
+        const isiDurationHint = document.getElementById('isi-duration-hint');
+        
+        /**
+         * Update UI based on selected protocol mode
+         * All parameters remain editable but are pre-filled with recommended defaults
+         */
+        function updateProtocolUI() {
+            const mode = protocolModeSelect.value;
+            
+            if (mode === 'visual') {
+                // =====================================================
+                // Visual Stimuli (Real Colors)
+                // Reference: 300ms-1s stimulus, 2-3s gray mask, 30 subjects
+                // =====================================================
+                
+                // Stimulus type: color by default
+                stimulusTypeSelect.value = 'color';
+                
+                // Timing - editable with recommended defaults
+                stimDurationInput.value = 300;      // Default 300ms (range 300ms-1s)
+                stimDurationInput.min = 100;
+                stimDurationInput.max = 1000;
+                stimDurationHint.textContent = 'Recommended: 300ms (range: 100-1000ms)';
+                
+                isiDurationInput.value = 2500;      // Default 2.5s (range 2-3s)
+                isiDurationInput.min = 2000;
+                isiDurationInput.max = 3000;
+                isiDurationHint.textContent = 'Gray mask: 2000-3000ms (avoids persistence)';
+                
+                // Repetitions
+                repetitionsInput.value = 30;        // Standard for EEG decoding
+                
+                // Visual parameters
+                angularSizeSelect.value = '7';      // 5-10° recommended, 7° default
+                analysisWindowInput.value = 1000;   // 1000ms post-onset for EEG
+                
+                // Breaks
+                enableBreaksCheckbox.checked = true;
+                trialsPerSeriesInput.value = 15;    // Break every 15 trials
+                
+                // Description
+                protocolDescription.innerHTML = `
+                    <strong>Visual Protocol:</strong> 300ms-1s stimulus + 2-3s gray mask<br>
+                    <span style="color: #60a060;">Angular size: 5-10° | EEG window: 1000ms post-onset</span>
+                `;
+                
+                // Hide imagery-specific settings
+                imagerySettings.style.display = 'none';
+                
+            } else if (mode === 'imagery') {
+                // =====================================================
+                // Mental Visualization (Imagery)
+                // Reference: 3-10s to stabilize EEG, 1-3s rest
+                // =====================================================
+                
+                // Stimulus type: color by default
+                stimulusTypeSelect.value = 'color';
+                
+                // Timing - editable with recommended defaults
+                stimDurationInput.value = 5000;     // Default 5s (range 3-10s)
+                stimDurationInput.min = 3000;
+                stimDurationInput.max = 10000;
+                stimDurationHint.textContent = 'Recommended: 5000ms (range: 3000-10000ms)';
+                
+                isiDurationInput.value = 2000;      // Default 2s (range 1-3s)
+                isiDurationInput.min = 1000;
+                isiDurationInput.max = 3000;
+                isiDurationHint.textContent = 'Rest delay: 1000-3000ms';
+                
+                // Repetitions
+                repetitionsInput.value = 30;        // Standard for EEG decoding
+                
+                // Visual parameters (less relevant for imagery but keep configurable)
+                angularSizeSelect.value = 'full';   // Full screen for instruction display
+                analysisWindowInput.value = 1000;   // 1000ms post-onset for EEG
+                
+                // Breaks - more frequent for mental effort
+                enableBreaksCheckbox.checked = true;
+                trialsPerSeriesInput.value = 10;    // Break every 10 trials (mental fatigue)
+                
+                // Description
+                protocolDescription.innerHTML = `
+                    <strong>Imagery Protocol:</strong> 3-10s visualization + 1-3s rest<br>
+                    <span style="color: #60a060;">Instructions shown | More frequent breaks</span>
+                `;
+                
+                // Show imagery-specific settings
+                imagerySettings.style.display = 'block';
+                
+            } else {
+                // =====================================================
+                // Custom - full control, no presets
+                // =====================================================
+                
+                // Allow full range
+                stimDurationInput.min = 100;
+                stimDurationInput.max = 30000;
+                stimDurationHint.textContent = 'Custom mode: 100-30000ms';
+                
+                isiDurationInput.min = 200;
+                isiDurationInput.max = 10000;
+                isiDurationHint.textContent = 'Custom mode: 200-10000ms';
+                
+                // Description
+                protocolDescription.innerHTML = `
+                    <strong>Custom Configuration</strong><br>
+                    <span style="color: #a0a060;">All parameters are freely adjustable</span>
+                `;
+                
+                // Show all settings
+                imagerySettings.style.display = 'block';
+            }
+            
+            // All inputs remain enabled (editable)
+            stimDurationInput.disabled = false;
+            isiDurationInput.disabled = false;
+            repetitionsInput.disabled = false;
+            angularSizeSelect.disabled = false;
+            analysisWindowInput.disabled = false;
+            trialsPerSeriesInput.disabled = false;
+        }
+        
+        protocolModeSelect.addEventListener('change', updateProtocolUI);
+        
+        // Initialize UI with visual protocol defaults
+        updateProtocolUI();
+        
+        // Ganzfeld toggle handler
+        const enableGanzfeldCheckbox = document.getElementById('enable-ganzfeld');
+        const ganzfeldParams = document.getElementById('ganzfeld-params');
+        
+        enableGanzfeldCheckbox.addEventListener('change', () => {
+            ganzfeldParams.style.display = enableGanzfeldCheckbox.checked ? 'block' : 'none';
+            
+            // Calculate and display total duration
+            if (enableGanzfeldCheckbox.checked) {
+                const colorDur = parseInt(document.getElementById('ganzfeld-color-duration').value);
+                const transDur = parseInt(document.getElementById('ganzfeld-transition-duration').value);
+                const blackDur = parseInt(document.getElementById('ganzfeld-black-duration').value);
+                const totalSec = (4 * colorDur) + (3 * transDur) + blackDur;
+                const totalMin = Math.floor(totalSec / 60);
+                const remSec = totalSec % 60;
+                console.log(`[GANZFELD] Estimated duration: ${totalMin}m ${remSec}s`);
+            }
+        });
+        
+        // Update Ganzfeld duration display when parameters change
+        ['ganzfeld-color-duration', 'ganzfeld-transition-duration', 'ganzfeld-black-duration'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => {
+                    const colorDur = parseInt(document.getElementById('ganzfeld-color-duration').value);
+                    const transDur = parseInt(document.getElementById('ganzfeld-transition-duration').value);
+                    const blackDur = parseInt(document.getElementById('ganzfeld-black-duration').value);
+                    const totalSec = (4 * colorDur) + (3 * transDur) + blackDur;
+                    const totalMin = Math.floor(totalSec / 60);
+                    const remSec = totalSec % 60;
+                    
+                    // Update warning text
+                    const warningSpan = document.querySelector('#ganzfeld-settings > .control-group > span');
+                    if (warningSpan) {
+                        warningSpan.textContent = `⚠️ Total duration: ~${totalMin}m ${remSec}s before color trials`;
+                    }
+                });
+            }
+        });
+        
+        // Test audio button
+        document.getElementById('test-audio-btn').addEventListener('click', () => {
+            console.log('[UI] Test button clicked!');
+            AudioManager.init();
+            
+            // Get current mode from radio
+            const audioModeRadio = document.querySelector('input[name="audio-mode"]:checked');
+            AudioManager.mode = audioModeRadio?.value || 'beep';
+            
+            // Small delay to ensure context is ready
+            setTimeout(() => {
+                if (AudioManager.mode === 'voice') {
+                    AudioManager.speakColor('Rouge');
+                } else {
+                    AudioManager.softBeep();
+                }
+            }, 50);
+        });
+        
+        // Start button
+        document.getElementById('start-btn').addEventListener('click', () => {
+            ExperimentController.start();
+        });
+        
+        // Toggle event log
+        document.getElementById('toggle-log-btn').addEventListener('click', () => {
+            document.getElementById('event-log').classList.toggle('visible');
+        });
+        
+        // Stimulus type change - show/hide shape options
+        document.getElementById('stimulus-type').addEventListener('change', (e) => {
+            const shapeOptions = document.getElementById('shape-options-header')?.nextElementSibling;
+            if (e.target.value === 'color') {
+                // Could hide shape options for color-only
+            }
+        });
+    });
+
+    // ============================================================
+    // EXTENSION API
+    // Functions to make it easy to extend the stimulus set
+    // ============================================================
+    
+    /**
+     * Add a custom color stimulus
+     * @param {string} name - Unique identifier
+     * @param {number} hex - Hex color value (e.g., 0xff00ff)
+     * @param {string} code - Short code for event logging
+     */
+    function addCustomColor(name, hex, code) {
+        Config.colors[name] = { hex, name, code };
+        console.log(`[CONFIG] Added custom color: ${name}`);
+    }
+    
+    /**
+     * Add a custom shape stimulus
+     * @param {string} name - Unique identifier
+     * @param {THREE.BufferGeometry} geometry - Three.js geometry
+     * @param {string} code - Short code for event logging
+     */
+    function addCustomShape(name, geometry, code) {
+        Config.shapes[name] = { name, code, customGeometry: geometry };
+        console.log(`[CONFIG] Added custom shape: ${name}`);
+    }
+    
+    /**
+     * Add an auditory cue (stub for future implementation)
+     * @param {string} name - Cue identifier
+     * @param {string} audioUrl - Path to audio file
+     */
+    function addAuditoryCue(name, audioUrl) {
+        // Stub for future auditory stimulus support
+        console.log(`[CONFIG] Auditory cue registered: ${name} -> ${audioUrl}`);
+        // Implementation would use Web Audio API
+    }
+    
+    // Expose API globally for console access
+    window.EEGStimulus = {
+        Config,
+        EventLogger,
+        StimulusFactory,
+        ExperimentController,
+        addCustomColor,
+        addCustomShape,
+        addAuditoryCue
+    };
+    
+    console.log('=== EEG STIMULUS PLATFORM LOADED ===');
+    console.log('Access API via window.EEGStimulus');
+    </script>
+</body>
+</html>
