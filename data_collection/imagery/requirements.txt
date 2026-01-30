@@ -1,0 +1,19 @@
+# EEG Imagery Experiment Platform - Dependencies
+
+# Web framework
+flask>=2.3.0
+flask-socketio>=5.3.0
+
+# WebSocket support
+python-socketio>=5.8.0
+eventlet>=0.33.0
+
+# Audio playback
+pygame>=2.5.0
+
+# LSL integration
+pylsl>=1.16.0
+
+# Optional: alternative audio backend
+sounddevice>=0.4.6
+# soundfile>=0.12.0

@@ -1,0 +1,775 @@
+/* =============================================================================
+   EEG Imagery Experiment - Dark Minimalist Design
+   Inspired by BITS wallet aesthetic - Dark Mode
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-tertiary: #1a1a1a;
+    --bg-hover: #222222;
+    --text-primary: #ffffff;
+    --text-secondary: #888888;
+    --text-muted: #555555;
+    --border-color: #2a2a2a;
+    --border-light: #333333;
+    --border-highlight: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.status {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    border: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.status.connected {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border-color: var(--text-primary);
+}
+
+.status.disconnected {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 16px 12px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.tab-btn:last-child {
+    border-right: none;
+}
+
+.tab-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.tab-btn.active {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+}
+
+/* Main Content */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Panels */
+.panel {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel.hidden {
+    display: none;
+}
+
+.panel h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+}
+
+/* Config Groups */
+.config-group {
+    margin-bottom: 28px;
+}
+
+.config-group h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.config-row:last-child {
+    border-bottom: none;
+}
+
+.config-row label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.config-row .unit {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: 4px;
+}
+
+.config-row input[type="number"],
+.config-row select {
+    width: 100px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+.config-row input[type="number"]:focus,
+.config-row select:focus {
+    outline: none;
+    border-color: var(--text-primary);
+}
+
+.config-row select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Checkboxes */
+.checkbox-row {
+    justify-content: flex-start;
+}
+
+.checkbox-row label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.checkbox-row input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+}
+
+.checkbox-row input[type="checkbox"]:checked {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+}
+
+.checkbox-row input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--bg-primary);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+/* Categories Grid */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.category-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.category-checkbox:hover {
+    border-color: var(--border-light);
+    background: var(--bg-tertiary);
+}
+
+.category-checkbox input {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.category-checkbox input:checked {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+}
+
+.category-checkbox span {
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.category-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.loading {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 20px;
+    text-align: center;
+    grid-column: 1 / -1;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-small {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    padding: 18px 24px;
+    width: 100%;
+    margin-top: auto;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #dddddd;
+}
+
+.btn-primary:disabled {
+    background: var(--border-color);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    padding: 16px 24px;
+    border: 1px solid var(--border-light);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary);
+    border-color: var(--text-primary);
+}
+
+.btn-danger {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 16px 24px;
+    border: 1px solid var(--border-color);
+}
+
+.btn-danger:hover {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border-color: var(--text-primary);
+}
+
+.btn-small {
+    padding: 8px 14px;
+    font-size: 0.6rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.btn-small:hover {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+/* Config Summary */
+.config-summary {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 16px 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.config-summary p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.config-summary p:last-child {
+    margin-bottom: 0;
+}
+
+.config-summary span {
+    font-family: 'Space Mono', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* =====================================================
+   EXPERIMENT PANEL - Main Visual Display
+   ===================================================== */
+
+#experiment-panel {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 0;
+}
+
+/* Progress Bar */
+.progress-container {
+    display: flex;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 16px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 2px;
+    background: var(--border-color);
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: var(--progress, 0%);
+    background: var(--text-primary);
+    transition: width 0.3s;
+}
+
+#progress-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Experiment Display - Isometric Style */
+.experiment-display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    position: relative;
+    min-height: 350px;
+}
+
+/* Isometric Cube - CSS Only */
+.iso-cube-container {
+    width: 140px;
+    height: 160px;
+    position: relative;
+    margin-bottom: 40px;
+}
+
+.iso-cube {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.iso-face {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border: 1px solid var(--border-light);
+    background: transparent;
+    transition: all 0.4s ease;
+}
+
+.iso-face.top {
+    transform: translateY(-40px) rotateX(60deg) rotateZ(45deg);
+    transform-origin: center center;
+}
+
+.iso-face.left {
+    transform: translateX(-28px) translateY(12px) rotateZ(-45deg) skewY(45deg);
+    transform-origin: center center;
+    height: 56px;
+}
+
+.iso-face.right {
+    transform: translateX(28px) translateY(12px) rotateZ(45deg) skewY(-45deg);
+    transform-origin: center center;
+    height: 56px;
+}
+
+/* Recording state - fill cube faces */
+.experiment-display.recording .iso-face.top {
+    background: rgba(255,255,255,0.9);
+    border-color: var(--text-primary);
+}
+
+.experiment-display.recording .iso-face.left {
+    background: rgba(255,255,255,0.5);
+    border-color: var(--text-primary);
+}
+
+.experiment-display.recording .iso-face.right {
+    background: rgba(255,255,255,0.25);
+    border-color: var(--text-primary);
+}
+
+/* Buffer state - partial fill */
+.experiment-display.buffer .iso-face {
+    border-color: var(--text-muted);
+}
+
+.experiment-display.buffer .iso-face.top {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Cue state */
+.experiment-display.cue .iso-face {
+    border-color: var(--text-secondary);
+}
+
+.phase-indicator {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.phase-indicator.recording {
+    color: var(--text-primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.phase-indicator.buffer {
+    color: var(--text-secondary);
+}
+
+.phase-indicator.cue {
+    color: var(--text-secondary);
+}
+
+.category-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    margin-bottom: 16px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.state-message {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+/* Experiment Controls */
+.experiment-controls {
+    display: flex;
+    border-top: 1px solid var(--border-color);
+}
+
+.experiment-controls button {
+    flex: 1;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.experiment-controls button:last-child {
+    border-right: none;
+}
+
+.experiment-controls button:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* =====================================================
+   BREAK PANEL
+   ===================================================== */
+
+#break-panel {
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+
+#break-panel h2 {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+#break-progress {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+}
+
+/* Likert Scale */
+.likert-container {
+    margin-bottom: 40px;
+    width: 100%;
+}
+
+.likert-container h3 {
+    font-size: 0.8rem;
+    font-weight: 400;
+    margin-bottom: 24px;
+    color: var(--text-secondary);
+}
+
+.likert-options {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.likert-option {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.likert-option:hover {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+.likert-option.selected {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border-color: var(--text-primary);
+}
+
+#continue-btn {
+    width: auto;
+    padding: 16px 48px;
+}
+
+/* =====================================================
+   COMPLETE PANEL
+   ===================================================== */
+
+#complete-panel {
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+
+#complete-panel h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    letter-spacing: 2px;
+}
+
+#complete-panel p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+#complete-panel span {
+    font-family: 'Space Mono', monospace;
+    color: var(--text-primary);
+}
+
+#restart-btn {
+    margin-top: 40px;
+    width: auto;
+    padding: 16px 48px;
+}
+
+/* Footer */
+footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+footer p {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+footer kbd {
+    font-family: 'Space Mono', monospace;
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border: 1px solid var(--border-color);
+    font-size: 0.65rem;
+}
+
+/* =====================================================
+   Scrollable Config
+   ===================================================== */
+
+#config-panel {
+    overflow-y: auto;
+}
+
+/* =====================================================
+   Responsive
+   ===================================================== */
+
+@media (max-width: 520px) {
+    .container {
+        border: none;
+    }
+    
+    .categories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .category-display {
+        font-size: 1.6rem;
+        letter-spacing: 4px;
+    }
+    
+    .likert-options {
+        gap: 8px;
+    }
+    
+    .likert-option {
+        width: 44px;
+        height: 44px;
+    }
+}

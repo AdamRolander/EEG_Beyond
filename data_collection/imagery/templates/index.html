@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EEG Imagery Experiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>IMAGERY</h1>
+            <div id="connection-status" class="status disconnected">Offline</div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="colors">Colors</button>
+            <button class="tab-btn" data-tab="primitives">Primitives</button>
+            <button class="tab-btn" data-tab="complex">Complex</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- Configuration Panel (shown when idle) -->
+            <section id="config-panel" class="panel">
+                <h2>Experiment Configuration</h2>
+                
+                <!-- Timing Parameters -->
+                <div class="config-group">
+                    <h3>Timing Parameters</h3>
+                    <div class="config-row">
+                        <label for="visualization-duration">
+                            Visualization Duration
+                            <span class="unit">(ms)</span>
+                        </label>
+                        <input type="number" id="visualization-duration" value="3000" min="500" step="100">
+                    </div>
+                    <div class="config-row">
+                        <label for="pre-buffer">
+                            Pre-Recording Buffer
+                            <span class="unit">(ms)</span>
+                        </label>
+                        <input type="number" id="pre-buffer" value="500" min="0" step="100">
+                    </div>
+                    <div class="config-row">
+                        <label for="inter-trial-gap">
+                            Inter-Trial Gap
+                            <span class="unit">(ms)</span>
+                        </label>
+                        <input type="number" id="inter-trial-gap" value="1000" min="0" step="100">
+                    </div>
+                </div>
+
+                <!-- Trial Structure -->
+                <div class="config-group">
+                    <h3>Trial Structure</h3>
+                    <div class="config-row">
+                        <label for="trials-per-category">Trials per Category</label>
+                        <input type="number" id="trials-per-category" value="10" min="1" max="100">
+                    </div>
+                    <div class="config-row">
+                        <label for="trials-until-break">Trials until Break</label>
+                        <input type="number" id="trials-until-break" value="15" min="1" max="100">
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="config-group">
+                    <h3>Categories</h3>
+                    <div id="categories-container" class="categories-grid">
+                        <!-- Dynamically populated -->
+                        <p class="loading">Loading categories...</p>
+                    </div>
+                    <div class="category-actions">
+                        <button id="select-all-btn" class="btn-small">Select All</button>
+                        <button id="deselect-all-btn" class="btn-small">Deselect All</button>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="config-group">
+                    <h3>Options</h3>
+                    <div class="config-row checkbox-row">
+                        <label>
+                            <input type="checkbox" id="randomize-order" checked>
+                            Randomize trial order
+                        </label>
+                    </div>
+                    <div class="config-row checkbox-row">
+                        <label>
+                            <input type="checkbox" id="enable-end-beep" checked>
+                            Play beep at end of visualization
+                        </label>
+                    </div>
+                    <div class="config-row checkbox-row">
+                        <label>
+                            <input type="checkbox" id="enable-likert" checked>
+                            Enable Likert scale at breaks
+                        </label>
+                    </div>
+                    <div class="config-row" id="likert-scale-row">
+                        <label for="likert-scale">Likert Scale Points</label>
+                        <select id="likert-scale">
+                            <option value="3">3-point (Low/Med/High)</option>
+                            <option value="5" selected>5-point</option>
+                        </select>
+                    </div>
+                    <div class="config-row checkbox-row">
+                        <label>
+                            <input type="checkbox" id="enable-logging">
+                            Enable session logging (JSON)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="config-summary">
+                    <p>Total trials: <span id="total-trials">0</span></p>
+                    <p>Estimated duration: <span id="estimated-duration">0</span> min</p>
+                </div>
+
+                <!-- Start Button -->
+                <button id="start-btn" class="btn-primary">Initialize & Start</button>
+            </section>
+
+            <!-- Experiment Display (shown when running) -->
+            <section id="experiment-panel" class="panel hidden">
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                    <span id="progress-text">0 / 0</span>
+                </div>
+
+                <!-- Current State Display -->
+                <div id="experiment-display" class="experiment-display">
+                    <!-- Isometric Cube Visual -->
+                    <div class="iso-cube-container">
+                        <div class="iso-cube">
+                            <div class="iso-face top"></div>
+                            <div class="iso-face left"></div>
+                            <div class="iso-face right"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="phase-indicator" class="phase-indicator">READY</div>
+                    <div id="category-display" class="category-display"></div>
+                    <div id="state-message" class="state-message"></div>
+                </div>
+
+                <!-- Controls -->
+                <div class="experiment-controls">
+                    <button id="pause-btn" class="btn-secondary">Pause (Space)</button>
+                    <button id="stop-btn" class="btn-danger">Stop Experiment</button>
+                </div>
+            </section>
+
+            <!-- Break/Likert Panel -->
+            <section id="break-panel" class="panel hidden">
+                <h2>Break Time</h2>
+                <p id="break-progress">Completed: <span>0</span> / <span>0</span> trials</p>
+                
+                <div id="likert-container" class="likert-container hidden">
+                    <h3>Rate your visualization quality:</h3>
+                    <div id="likert-options" class="likert-options">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <button id="continue-btn" class="btn-primary" disabled>Continue (Space)</button>
+            </section>
+
+            <!-- Completion Panel -->
+            <section id="complete-panel" class="panel hidden">
+                <h2>Experiment Complete!</h2>
+                <p>Session ID: <span id="session-id"></span></p>
+                <p>Total trials completed: <span id="completed-trials"></span></p>
+                <button id="restart-btn" class="btn-primary">Start New Experiment</button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Press <kbd>Space</kbd> to pause/resume during experiment</p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/experiment.js') }}"></script>
+</body>
+</html>
