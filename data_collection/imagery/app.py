@@ -15,18 +15,18 @@ from experiment_engine import (
     get_experiment_engine,
     reset_experiment_engine
 )
-from audio_manager import get_audio_manager
+from audio_manager import get_audio_manager, reset_audio_manager
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'imagery-experiment-secret'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Global engine reference
 engine: ExperimentEngine = None
 
 
 def setup_engine_callbacks():
-    """Set up callbacks from engine to WebSocket."""
+    """Set up callbacks from engine to WebSocket - using socketio.emit for thread safety."""
     global engine
     
     def on_state_change(state: ExperimentState):
@@ -147,6 +147,10 @@ def on_initialize(data):
     global engine
     
     try:
+        # Stop any existing audio
+        audio_mgr = get_audio_manager()
+        audio_mgr.stop_all()
+        
         config = ExperimentConfig(
             experiment_type=data.get('experiment_type', 'colors'),
             visualization_duration_ms=int(data.get('visualization_duration_ms', 3000)),
@@ -177,6 +181,7 @@ def on_initialize(data):
             emit('initialized', {'success': False, 'error': 'Initialization failed'})
             
     except Exception as e:
+        print(f"Initialize error: {e}")
         emit('initialized', {'success': False, 'error': str(e)})
 
 
@@ -211,8 +216,14 @@ def on_resume():
 def on_stop():
     """Stop the experiment."""
     global engine
+    
+    # Stop audio immediately
+    audio_mgr = get_audio_manager()
+    audio_mgr.stop_all()
+    
     if engine:
         engine.stop()
+    
     emit('stopped', {'success': True})
 
 
@@ -251,4 +262,4 @@ if __name__ == '__main__':
     print("\nStarting server at http://localhost:8080")
     print("="*60 + "\n")
     
-    socketio.run(app, host='0.0.0.0', port=8080, debug=True)
+    socketio.run(app, host='0.0.0.0', port=8080, debug=False, use_reloader=False)

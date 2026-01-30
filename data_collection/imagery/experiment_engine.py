@@ -271,11 +271,16 @@ class ExperimentEngine:
     
     def stop(self):
         """Stop the experiment."""
+        print("Stopping experiment...")
         self._stop_event.set()
         self._pause_event.set()  # Unblock if paused
         
+        # Stop all audio immediately
+        if self.audio:
+            self.audio.stop_all()
+        
         if self._trial_thread and self._trial_thread.is_alive():
-            self._trial_thread.join(timeout=2.0)
+            self._trial_thread.join(timeout=1.0)
         
         self._log_marker(*self.lsl.send_marker(MarkerCode.EXP_END))
         
@@ -287,6 +292,7 @@ class ExperimentEngine:
         
         self.state = ExperimentState.IDLE
         self._emit_state_change()
+        print("Experiment stopped")
     
     def submit_likert(self, rating: int):
         """Submit a Likert scale response."""
@@ -459,19 +465,22 @@ class ExperimentEngine:
     
     def _precise_sleep(self, duration_seconds: float):
         """
-        High-precision sleep using busy-wait for final milliseconds.
+        High-precision sleep that can be interrupted by stop event.
         """
         if duration_seconds <= 0:
             return
-            
-        # Sleep for most of the duration (less precise but CPU-friendly)
-        if duration_seconds > 0.002:
-            time.sleep(duration_seconds - 0.002)
         
-        # Busy-wait for final ~2ms (more precise)
-        target = time.perf_counter() + 0.002 if duration_seconds > 0.002 else time.perf_counter() + duration_seconds
-        while time.perf_counter() < target:
-            pass
+        # Check stop event frequently during sleep
+        end_time = time.perf_counter() + duration_seconds
+        while time.perf_counter() < end_time:
+            if self._stop_event.is_set():
+                return
+            remaining = end_time - time.perf_counter()
+            if remaining > 0.05:
+                time.sleep(0.05)
+            elif remaining > 0:
+                time.sleep(remaining)
+                return
     
     def _log_marker(self, timestamp: float, code: int, marker: str):
         """Log a marker to the session log."""

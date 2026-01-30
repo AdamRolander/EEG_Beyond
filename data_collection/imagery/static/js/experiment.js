@@ -1,412 +1,193 @@
 /**
  * EEG Imagery Experiment - Frontend Controller
- * Handles UI state, WebSocket communication, and keyboard controls
+ * Simplified version with reliable state management
  */
 
-// =============================================================================
-// State Management
-// =============================================================================
+// State
+let socket = null;
+let experimentState = 'IDLE';
+let experimentType = 'colors';
+let selectedLikert = null;
 
-const state = {
-    socket: null,
-    connected: false,
-    experimentType: 'colors',
-    experimentState: 'IDLE',
-    categories: {},
-    selectedLikert: null,
-    initialized: false
-};
-
-// =============================================================================
-// DOM Elements
-// =============================================================================
-
-const elements = {
-    // Connection
-    connectionStatus: document.getElementById('connection-status'),
-    
-    // Tabs
-    tabButtons: document.querySelectorAll('.tab-btn'),
-    
-    // Config
-    configPanel: document.getElementById('config-panel'),
-    visualizationDuration: document.getElementById('visualization-duration'),
-    preBuffer: document.getElementById('pre-buffer'),
-    interTrialGap: document.getElementById('inter-trial-gap'),
-    trialsPerCategory: document.getElementById('trials-per-category'),
-    trialsUntilBreak: document.getElementById('trials-until-break'),
-    categoriesContainer: document.getElementById('categories-container'),
-    selectAllBtn: document.getElementById('select-all-btn'),
-    deselectAllBtn: document.getElementById('deselect-all-btn'),
-    randomizeOrder: document.getElementById('randomize-order'),
-    enableEndBeep: document.getElementById('enable-end-beep'),
-    enableLikert: document.getElementById('enable-likert'),
-    likertScale: document.getElementById('likert-scale'),
-    likertScaleRow: document.getElementById('likert-scale-row'),
-    enableLogging: document.getElementById('enable-logging'),
-    totalTrials: document.getElementById('total-trials'),
-    estimatedDuration: document.getElementById('estimated-duration'),
-    startBtn: document.getElementById('start-btn'),
-    
-    // Experiment
-    experimentPanel: document.getElementById('experiment-panel'),
-    experimentDisplay: document.getElementById('experiment-display'),
-    progressBar: document.getElementById('progress-bar'),
-    progressText: document.getElementById('progress-text'),
-    phaseIndicator: document.getElementById('phase-indicator'),
-    categoryDisplay: document.getElementById('category-display'),
-    stateMessage: document.getElementById('state-message'),
-    pauseBtn: document.getElementById('pause-btn'),
-    stopBtn: document.getElementById('stop-btn'),
-    
-    // Break
-    breakPanel: document.getElementById('break-panel'),
-    breakProgress: document.getElementById('break-progress'),
-    likertContainer: document.getElementById('likert-container'),
-    likertOptions: document.getElementById('likert-options'),
-    continueBtn: document.getElementById('continue-btn'),
-    
-    // Complete
-    completePanel: document.getElementById('complete-panel'),
-    sessionId: document.getElementById('session-id'),
-    completedTrials: document.getElementById('completed-trials'),
-    restartBtn: document.getElementById('restart-btn')
-};
+// Connect when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    connectSocket();
+    setupUI();
+    loadCategories('colors');
+});
 
 // =============================================================================
-// WebSocket Connection
+// Socket Connection
 // =============================================================================
 
 function connectSocket() {
-    state.socket = io({
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-        timeout: 5000
+    socket = io();
+    
+    socket.on('connect', function() {
+        console.log('Connected');
+        document.getElementById('connection-status').textContent = 'Online';
+        document.getElementById('connection-status').className = 'status connected';
     });
     
-    state.socket.on('connect', () => {
-        console.log('Connected to server');
-        state.connected = true;
-        updateConnectionStatus(true);
+    socket.on('disconnect', function() {
+        console.log('Disconnected');
+        document.getElementById('connection-status').textContent = 'Offline';
+        document.getElementById('connection-status').className = 'status disconnected';
+    });
+    
+    // State events
+    socket.on('state_change', function(data) {
+        console.log('State:', data.state);
+        experimentState = data.state;
+        updateUI();
+    });
+    
+    socket.on('initialized', function(data) {
+        console.log('Initialized:', data);
+        if (data.success) {
+            socket.emit('start');
+        } else {
+            alert('Init failed: ' + data.error);
+            resetToConfig();
+        }
+    });
+    
+    socket.on('started', function(data) {
+        console.log('Started:', data);
+        if (!data.success) {
+            alert('Start failed: ' + data.error);
+            resetToConfig();
+        }
+    });
+    
+    socket.on('stopped', function(data) {
+        console.log('Stopped');
+        resetToConfig();
+    });
+    
+    socket.on('trial_start', function(data) {
+        console.log('Trial:', data);
+        document.getElementById('progress-text').textContent = data.trial_number + ' / ' + data.total_trials;
+        var pct = (data.trial_number / data.total_trials) * 100;
+        document.getElementById('progress-bar').style.setProperty('--progress', pct + '%');
+    });
+    
+    socket.on('phase_change', function(data) {
+        console.log('Phase:', data.phase, data.category);
         
-        // Request current state on reconnect
-        state.socket.emit('get_progress');
+        // Update display
+        var display = document.getElementById('experiment-display');
+        display.className = 'experiment-display ' + data.phase;
+        
+        document.getElementById('category-display').textContent = data.category;
+        
+        var phaseEl = document.getElementById('phase-indicator');
+        phaseEl.className = 'phase-indicator ' + data.phase;
+        
+        var msgEl = document.getElementById('state-message');
+        
+        if (data.phase === 'cue') {
+            phaseEl.textContent = 'CUE';
+            msgEl.textContent = 'Listen...';
+        } else if (data.phase === 'buffer') {
+            phaseEl.textContent = 'PREPARE';
+            msgEl.textContent = 'Get ready to visualize';
+        } else if (data.phase === 'recording') {
+            phaseEl.textContent = '● REC';
+            msgEl.textContent = 'Visualize now';
+        } else if (data.phase === 'end_beep') {
+            phaseEl.textContent = 'DONE';
+            msgEl.textContent = '';
+        }
     });
     
-    state.socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-        state.connected = false;
-        updateConnectionStatus(false);
-    });
-    
-    state.socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
-        state.connected = false;
-        updateConnectionStatus(false);
-    });
-    
-    // Experiment events
-    state.socket.on('state_change', handleStateChange);
-    state.socket.on('initialized', handleInitialized);
-    state.socket.on('started', handleStarted);
-    state.socket.on('trial_start', handleTrialStart);
-    state.socket.on('phase_change', handlePhaseChange);
-    state.socket.on('trial_complete', handleTrialComplete);
-    state.socket.on('break_start', handleBreakStart);
-    state.socket.on('experiment_complete', handleExperimentComplete);
-    state.socket.on('progress', handleProgress);
-    state.socket.on('error', handleError);
-    state.socket.on('stopped', handleStopped);
-}
-
-function updateConnectionStatus(connected) {
-    elements.connectionStatus.textContent = connected ? 'Online' : 'Offline';
-    elements.connectionStatus.className = `status ${connected ? 'connected' : 'disconnected'}`;
-}
-
-// =============================================================================
-// Event Handlers - WebSocket
-// =============================================================================
-
-function handleStateChange(data) {
-    console.log('State change:', data.state);
-    state.experimentState = data.state;
-    updateUIForState(data.state);
-}
-
-function handleInitialized(data) {
-    if (data.success) {
-        console.log('Experiment initialized:', data);
-        state.initialized = true;
-        elements.startBtn.textContent = 'Start Experiment';
-        // Auto-start after initialization
-        state.socket.emit('start');
-    } else {
-        alert('Initialization failed: ' + data.error);
-        elements.startBtn.disabled = false;
-        elements.startBtn.textContent = 'Initialize & Start';
-    }
-}
-
-function handleStarted(data) {
-    if (!data.success) {
-        alert('Failed to start: ' + data.error);
-    }
-}
-
-function handleStopped(data) {
-    console.log('Experiment stopped');
-    state.experimentState = 'IDLE';
-    state.initialized = false;
-    showPanel('config');
-    elements.startBtn.disabled = false;
-    elements.startBtn.textContent = 'Initialize & Start';
-}
-
-function handleTrialStart(data) {
-    console.log('Trial start:', data);
-    elements.progressText.textContent = `${data.trial_number} / ${data.total_trials}`;
-    const progress = (data.trial_number / data.total_trials) * 100;
-    elements.progressBar.style.setProperty('--progress', `${progress}%`);
-}
-
-function handlePhaseChange(data) {
-    console.log('Phase change:', data);
-    
-    // Make sure we're showing the experiment panel during phases
-    if (state.experimentState === 'RUNNING') {
-        showPanel('experiment');
-    }
-    
-    const display = elements.experimentDisplay;
-    display.className = 'experiment-display ' + data.phase;
-    
-    elements.phaseIndicator.className = `phase-indicator ${data.phase}`;
-    elements.categoryDisplay.textContent = data.category;
-    
-    switch (data.phase) {
-        case 'cue':
-            elements.phaseIndicator.textContent = 'CUE';
-            elements.stateMessage.textContent = 'Listen...';
-            break;
-        case 'buffer':
-            elements.phaseIndicator.textContent = 'PREPARE';
-            elements.stateMessage.textContent = 'Get ready to visualize';
-            break;
-        case 'recording':
-            elements.phaseIndicator.textContent = '● REC';
-            elements.stateMessage.textContent = 'Visualize now';
-            break;
-        case 'end_beep':
-            elements.phaseIndicator.textContent = 'DONE';
-            elements.stateMessage.textContent = '';
-            break;
-    }
-}
-
-function handleTrialComplete(data) {
-    console.log('Trial complete:', data);
-}
-
-function handleBreakStart(data) {
-    console.log('Break start:', data);
-    
-    // Force show break panel
-    showPanel('break');
-    
-    // Update progress text
-    const breakProgressEl = document.getElementById('break-progress');
-    if (breakProgressEl) {
-        breakProgressEl.innerHTML = `Completed: <span>${data.completed}</span> / <span>${data.total}</span> trials`;
-    }
-    
-    // Handle Likert scale
-    const likertContainer = document.getElementById('likert-container');
-    const continueBtn = document.getElementById('continue-btn');
-    
-    if (data.enable_likert) {
-        if (likertContainer) {
-            likertContainer.classList.remove('hidden');
+    socket.on('break_start', function(data) {
+        console.log('Break:', data);
+        experimentState = data.enable_likert ? 'LIKERT' : 'BREAK';
+        
+        // Show break panel
+        showPanel('break');
+        
+        // Update text
+        document.getElementById('break-progress').innerHTML = 
+            'Completed: <span>' + data.completed + '</span> / <span>' + data.total + '</span> trials';
+        
+        // Handle likert
+        var likertContainer = document.getElementById('likert-container');
+        var continueBtn = document.getElementById('continue-btn');
+        
+        if (data.enable_likert) {
             likertContainer.style.display = 'block';
-        }
-        buildLikertScale(data.likert_scale);
-        if (continueBtn) {
+            buildLikertScale(data.likert_scale);
             continueBtn.disabled = true;
-            continueBtn.textContent = 'Select rating to continue';
-        }
-    } else {
-        if (likertContainer) {
-            likertContainer.classList.add('hidden');
+            continueBtn.textContent = 'Select rating first';
+        } else {
             likertContainer.style.display = 'none';
-        }
-        if (continueBtn) {
             continueBtn.disabled = false;
             continueBtn.textContent = 'Continue (Space)';
         }
-    }
-    
-    state.selectedLikert = null;
-    state.experimentState = data.enable_likert ? 'LIKERT' : 'BREAK';
-}
-
-function handleExperimentComplete(data) {
-    console.log('Experiment complete:', data);
-    showPanel('complete');
-    elements.sessionId.textContent = data.session_id;
-    elements.completedTrials.textContent = data.total_trials;
-    state.experimentState = 'COMPLETED';
-}
-
-function handleProgress(data) {
-    console.log('Progress:', data);
-    state.experimentState = data.state;
-    
-    if (data.total_trials > 0) {
-        elements.progressText.textContent = `${data.current_trial} / ${data.total_trials}`;
-        const progress = (data.current_trial / data.total_trials) * 100;
-        elements.progressBar.style.setProperty('--progress', `${progress}%`);
-    }
-    
-    // Update UI based on current state
-    updateUIForState(data.state);
-}
-
-function handleError(data) {
-    console.error('Error:', data.message);
-    alert('Error: ' + data.message);
-}
-
-// =============================================================================
-// UI State Management
-// =============================================================================
-
-function updateUIForState(experimentState) {
-    console.log('Updating UI for state:', experimentState);
-    
-    switch (experimentState) {
-        case 'IDLE':
-            showPanel('config');
-            elements.startBtn.disabled = false;
-            elements.startBtn.textContent = 'Initialize & Start';
-            state.initialized = false;
-            break;
-            
-        case 'RUNNING':
-            showPanel('experiment');
-            elements.pauseBtn.textContent = 'Pause (Space)';
-            elements.stateMessage.textContent = '';
-            break;
-            
-        case 'PAUSED':
-            showPanel('experiment');
-            elements.pauseBtn.textContent = 'Resume (Space)';
-            elements.phaseIndicator.textContent = 'PAUSED';
-            elements.phaseIndicator.className = 'phase-indicator';
-            elements.stateMessage.textContent = 'Press Space to resume';
-            break;
-            
-        case 'BREAK':
-            showPanel('break');
-            const continueBtn = document.getElementById('continue-btn');
-            if (continueBtn && !document.getElementById('enable-likert')?.checked) {
-                continueBtn.disabled = false;
-                continueBtn.textContent = 'Continue (Space)';
-            }
-            break;
-            
-        case 'LIKERT':
-            showPanel('break');
-            break;
-            
-        case 'COMPLETED':
-            showPanel('complete');
-            break;
-    }
-}
-
-function showPanel(panelName) {
-    console.log('Showing panel:', panelName);
-    
-    // Hide all panels
-    elements.configPanel.classList.add('hidden');
-    elements.experimentPanel.classList.add('hidden');
-    elements.breakPanel.classList.add('hidden');
-    elements.completePanel.classList.add('hidden');
-    
-    // Show requested panel
-    switch (panelName) {
-        case 'config':
-            elements.configPanel.classList.remove('hidden');
-            break;
-        case 'experiment':
-            elements.experimentPanel.classList.remove('hidden');
-            break;
-        case 'break':
-            elements.breakPanel.classList.remove('hidden');
-            break;
-        case 'complete':
-            elements.completePanel.classList.remove('hidden');
-            break;
-    }
-}
-
-// =============================================================================
-// Tab Management
-// =============================================================================
-
-function switchTab(experimentType) {
-    state.experimentType = experimentType;
-    
-    // Update tab buttons
-    elements.tabButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === experimentType);
-    });
-    
-    // Load categories for this experiment type
-    loadCategories(experimentType);
-}
-
-async function loadCategories(experimentType) {
-    elements.categoriesContainer.innerHTML = '<p class="loading">Loading categories...</p>';
-    
-    try {
-        const response = await fetch(`/api/categories/${experimentType}`);
-        const data = await response.json();
         
-        if (data.categories && data.categories.length > 0) {
-            state.categories[experimentType] = data.categories;
-            renderCategories(data.categories);
-        } else {
-            elements.categoriesContainer.innerHTML = 
-                '<p class="loading">No audio files found. Add .mp3 files to the audio folder.</p>';
-        }
-    } catch (error) {
-        console.error('Failed to load categories:', error);
-        elements.categoriesContainer.innerHTML = 
-            '<p class="loading">Failed to load categories</p>';
-    }
+        selectedLikert = null;
+    });
     
-    updateSummary();
-}
-
-function renderCategories(categories) {
-    elements.categoriesContainer.innerHTML = categories.map(cat => `
-        <label class="category-checkbox">
-            <input type="checkbox" value="${cat}" checked>
-            <span>${cat}</span>
-        </label>
-    `).join('');
+    socket.on('experiment_complete', function(data) {
+        console.log('Complete:', data);
+        experimentState = 'COMPLETED';
+        showPanel('complete');
+        document.getElementById('session-id').textContent = data.session_id;
+        document.getElementById('completed-trials').textContent = data.total_trials;
+    });
     
-    // Add change listeners
-    elements.categoriesContainer.querySelectorAll('input').forEach(input => {
-        input.addEventListener('change', updateSummary);
+    socket.on('progress', function(data) {
+        console.log('Progress:', data);
+        experimentState = data.state;
+        updateUI();
+    });
+    
+    socket.on('error', function(data) {
+        console.error('Error:', data.message);
+        alert('Error: ' + data.message);
     });
 }
 
-function getSelectedCategories() {
-    const checkboxes = elements.categoriesContainer.querySelectorAll('input:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
+// =============================================================================
+// UI Updates
+// =============================================================================
+
+function showPanel(name) {
+    document.getElementById('config-panel').classList.add('hidden');
+    document.getElementById('experiment-panel').classList.add('hidden');
+    document.getElementById('break-panel').classList.add('hidden');
+    document.getElementById('complete-panel').classList.add('hidden');
+    
+    document.getElementById(name + '-panel').classList.remove('hidden');
+}
+
+function updateUI() {
+    if (experimentState === 'IDLE') {
+        showPanel('config');
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('start-btn').textContent = 'Initialize & Start';
+    } else if (experimentState === 'RUNNING') {
+        showPanel('experiment');
+        document.getElementById('pause-btn').textContent = 'Pause (Space)';
+    } else if (experimentState === 'PAUSED') {
+        showPanel('experiment');
+        document.getElementById('pause-btn').textContent = 'Resume (Space)';
+        document.getElementById('phase-indicator').textContent = 'PAUSED';
+        document.getElementById('state-message').textContent = 'Press Space to resume';
+    } else if (experimentState === 'BREAK' || experimentState === 'LIKERT') {
+        showPanel('break');
+    } else if (experimentState === 'COMPLETED') {
+        showPanel('complete');
+    }
+}
+
+function resetToConfig() {
+    experimentState = 'IDLE';
+    showPanel('config');
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('start-btn').textContent = 'Initialize & Start';
 }
 
 // =============================================================================
@@ -414,239 +195,220 @@ function getSelectedCategories() {
 // =============================================================================
 
 function buildLikertScale(points) {
-    const likertOptions = document.getElementById('likert-options');
-    if (!likertOptions) return;
+    var container = document.getElementById('likert-options');
+    var labels = points === 3 ? ['Low', 'Med', 'High'] : ['1', '2', '3', '4', '5'];
     
-    const labels = points === 3 
-        ? ['Low', 'Med', 'High']
-        : ['1', '2', '3', '4', '5'];
+    var html = '';
+    for (var i = 0; i < labels.length; i++) {
+        html += '<div class="likert-option" data-value="' + (i + 1) + '">' + labels[i] + '</div>';
+    }
+    container.innerHTML = html;
     
-    likertOptions.innerHTML = labels.map((label, i) => `
-        <div class="likert-option" data-value="${i + 1}">
-            ${label}
-        </div>
-    `).join('');
-    
-    // Add click listeners
-    likertOptions.querySelectorAll('.likert-option').forEach(option => {
-        option.addEventListener('click', () => selectLikert(option));
-    });
-}
-
-function selectLikert(option) {
-    const likertOptions = document.getElementById('likert-options');
-    if (!likertOptions) return;
-    
-    // Clear previous selection
-    likertOptions.querySelectorAll('.likert-option').forEach(opt => {
-        opt.classList.remove('selected');
-    });
-    
-    // Select new option
-    option.classList.add('selected');
-    state.selectedLikert = parseInt(option.dataset.value);
-    
-    // Enable continue button
-    const continueBtn = document.getElementById('continue-btn');
-    if (continueBtn) {
-        continueBtn.disabled = false;
-        continueBtn.textContent = 'Continue (Space)';
+    // Add click handlers
+    var options = container.querySelectorAll('.likert-option');
+    for (var j = 0; j < options.length; j++) {
+        options[j].addEventListener('click', function() {
+            // Clear all
+            var all = container.querySelectorAll('.likert-option');
+            for (var k = 0; k < all.length; k++) {
+                all[k].classList.remove('selected');
+            }
+            // Select this one
+            this.classList.add('selected');
+            selectedLikert = parseInt(this.getAttribute('data-value'));
+            
+            // Enable continue
+            document.getElementById('continue-btn').disabled = false;
+            document.getElementById('continue-btn').textContent = 'Continue (Space)';
+        });
     }
 }
 
 // =============================================================================
-// Configuration
+// Categories
 // =============================================================================
+
+async function loadCategories(type) {
+    experimentType = type;
+    
+    // Update tabs
+    var tabs = document.querySelectorAll('.tab-btn');
+    for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === type);
+    }
+    
+    var container = document.getElementById('categories-container');
+    container.innerHTML = '<p class="loading">Loading...</p>';
+    
+    try {
+        var response = await fetch('/api/categories/' + type);
+        var data = await response.json();
+        
+        if (data.categories && data.categories.length > 0) {
+            var html = '';
+            for (var j = 0; j < data.categories.length; j++) {
+                var cat = data.categories[j];
+                html += '<label class="category-checkbox">';
+                html += '<input type="checkbox" value="' + cat + '" checked>';
+                html += '<span>' + cat + '</span>';
+                html += '</label>';
+            }
+            container.innerHTML = html;
+            
+            // Add change handlers for summary
+            var checkboxes = container.querySelectorAll('input');
+            for (var k = 0; k < checkboxes.length; k++) {
+                checkboxes[k].addEventListener('change', updateSummary);
+            }
+        } else {
+            container.innerHTML = '<p class="loading">No audio files found</p>';
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="loading">Failed to load</p>';
+    }
+    
+    updateSummary();
+}
+
+function getSelectedCategories() {
+    var checkboxes = document.getElementById('categories-container').querySelectorAll('input:checked');
+    var cats = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+        cats.push(checkboxes[i].value);
+    }
+    return cats;
+}
 
 function updateSummary() {
-    const categories = getSelectedCategories();
-    const trialsPerCategory = parseInt(elements.trialsPerCategory.value) || 0;
-    const totalTrials = categories.length * trialsPerCategory;
+    var cats = getSelectedCategories();
+    var perCat = parseInt(document.getElementById('trials-per-category').value) || 0;
+    var total = cats.length * perCat;
     
-    const visualizationMs = parseInt(elements.visualizationDuration.value) || 0;
-    const bufferMs = parseInt(elements.preBuffer.value) || 0;
-    const gapMs = parseInt(elements.interTrialGap.value) || 0;
-    const trialDuration = visualizationMs + bufferMs + gapMs + 1000; // +1s for audio
+    document.getElementById('total-trials').textContent = total;
     
-    const totalMs = totalTrials * trialDuration;
-    const minutes = Math.ceil(totalMs / 60000);
+    var vizMs = parseInt(document.getElementById('visualization-duration').value) || 0;
+    var bufferMs = parseInt(document.getElementById('pre-buffer').value) || 0;
+    var gapMs = parseInt(document.getElementById('inter-trial-gap').value) || 0;
+    var trialMs = vizMs + bufferMs + gapMs + 1000;
+    var totalMin = Math.ceil((total * trialMs) / 60000);
     
-    elements.totalTrials.textContent = totalTrials;
-    elements.estimatedDuration.textContent = minutes;
-}
-
-function getConfig() {
-    return {
-        experiment_type: state.experimentType,
-        visualization_duration_ms: parseInt(elements.visualizationDuration.value),
-        pre_recording_buffer_ms: parseInt(elements.preBuffer.value),
-        inter_trial_gap_ms: parseInt(elements.interTrialGap.value),
-        trials_per_category: parseInt(elements.trialsPerCategory.value),
-        trials_until_break: parseInt(elements.trialsUntilBreak.value),
-        enabled_categories: getSelectedCategories(),
-        randomize_order: elements.randomizeOrder.checked,
-        enable_end_beep: elements.enableEndBeep.checked,
-        enable_likert: elements.enableLikert.checked,
-        likert_scale: parseInt(elements.likertScale.value),
-        enable_logging: elements.enableLogging ? elements.enableLogging.checked : false
-    };
+    document.getElementById('estimated-duration').textContent = totalMin;
 }
 
 // =============================================================================
-// Event Listeners - UI
+// UI Setup
 // =============================================================================
 
-function setupEventListeners() {
-    // Tab switching
-    elements.tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
+function setupUI() {
+    // Tabs
+    var tabs = document.querySelectorAll('.tab-btn');
+    for (var i = 0; i < tabs.length; i++) {
+        tabs[i].addEventListener('click', function() {
+            loadCategories(this.getAttribute('data-tab'));
+        });
+    }
     
-    // Category selection
-    elements.selectAllBtn.addEventListener('click', () => {
-        elements.categoriesContainer.querySelectorAll('input').forEach(cb => cb.checked = true);
+    // Select all/none
+    document.getElementById('select-all-btn').addEventListener('click', function() {
+        var cbs = document.getElementById('categories-container').querySelectorAll('input');
+        for (var j = 0; j < cbs.length; j++) cbs[j].checked = true;
         updateSummary();
     });
     
-    elements.deselectAllBtn.addEventListener('click', () => {
-        elements.categoriesContainer.querySelectorAll('input').forEach(cb => cb.checked = false);
+    document.getElementById('deselect-all-btn').addEventListener('click', function() {
+        var cbs = document.getElementById('categories-container').querySelectorAll('input');
+        for (var j = 0; j < cbs.length; j++) cbs[j].checked = false;
         updateSummary();
     });
     
     // Likert toggle
-    elements.enableLikert.addEventListener('change', () => {
-        elements.likertScaleRow.style.display = elements.enableLikert.checked ? 'flex' : 'none';
+    document.getElementById('enable-likert').addEventListener('change', function() {
+        document.getElementById('likert-scale-row').style.display = this.checked ? 'flex' : 'none';
     });
     
     // Config changes
-    [elements.visualizationDuration, elements.preBuffer, elements.interTrialGap, 
-     elements.trialsPerCategory].forEach(el => {
-        el.addEventListener('change', updateSummary);
-    });
+    document.getElementById('visualization-duration').addEventListener('change', updateSummary);
+    document.getElementById('pre-buffer').addEventListener('change', updateSummary);
+    document.getElementById('inter-trial-gap').addEventListener('change', updateSummary);
+    document.getElementById('trials-per-category').addEventListener('change', updateSummary);
     
     // Start button
-    elements.startBtn.addEventListener('click', () => {
-        const config = getConfig();
-        
-        if (config.enabled_categories.length === 0) {
-            alert('Please select at least one category');
+    document.getElementById('start-btn').addEventListener('click', function() {
+        var cats = getSelectedCategories();
+        if (cats.length === 0) {
+            alert('Select at least one category');
             return;
         }
         
-        elements.startBtn.disabled = true;
-        elements.startBtn.textContent = 'Initializing...';
-        state.socket.emit('initialize', config);
+        this.disabled = true;
+        this.textContent = 'Initializing...';
+        
+        var config = {
+            experiment_type: experimentType,
+            visualization_duration_ms: parseInt(document.getElementById('visualization-duration').value),
+            pre_recording_buffer_ms: parseInt(document.getElementById('pre-buffer').value),
+            inter_trial_gap_ms: parseInt(document.getElementById('inter-trial-gap').value),
+            trials_per_category: parseInt(document.getElementById('trials-per-category').value),
+            trials_until_break: parseInt(document.getElementById('trials-until-break').value),
+            enabled_categories: cats,
+            randomize_order: document.getElementById('randomize-order').checked,
+            enable_end_beep: document.getElementById('enable-end-beep').checked,
+            enable_likert: document.getElementById('enable-likert').checked,
+            likert_scale: parseInt(document.getElementById('likert-scale').value),
+            enable_logging: document.getElementById('enable-logging') ? document.getElementById('enable-logging').checked : false
+        };
+        
+        socket.emit('initialize', config);
     });
     
     // Pause button
-    elements.pauseBtn.addEventListener('click', () => {
-        if (state.experimentState === 'PAUSED') {
-            state.socket.emit('resume');
+    document.getElementById('pause-btn').addEventListener('click', function() {
+        if (experimentState === 'PAUSED') {
+            socket.emit('resume');
         } else {
-            state.socket.emit('pause');
+            socket.emit('pause');
         }
     });
     
     // Stop button
-    elements.stopBtn.addEventListener('click', () => {
-        stopExperiment();
+    document.getElementById('stop-btn').addEventListener('click', function() {
+        socket.emit('stop');
     });
     
-    // Continue button (break)
-    elements.continueBtn.addEventListener('click', () => {
-        handleContinue();
+    // Continue button
+    document.getElementById('continue-btn').addEventListener('click', function() {
+        if (experimentState === 'LIKERT' && selectedLikert) {
+            socket.emit('submit_likert', { rating: selectedLikert });
+        }
+        socket.emit('resume');
     });
     
     // Restart button
-    elements.restartBtn.addEventListener('click', () => {
-        state.initialized = false;
-        state.experimentState = 'IDLE';
-        showPanel('config');
+    document.getElementById('restart-btn').addEventListener('click', function() {
+        resetToConfig();
     });
     
-    // Keyboard controls
-    document.addEventListener('keydown', (e) => {
-        // ESC key - stop experiment from any state
+    // Keyboard
+    document.addEventListener('keydown', function(e) {
         if (e.code === 'Escape') {
             e.preventDefault();
-            stopExperiment();
-            return;
+            socket.emit('stop');
+            setTimeout(resetToConfig, 300);
         }
         
-        // Space key - context-dependent
         if (e.code === 'Space') {
             e.preventDefault();
-            handleSpacebar();
+            
+            if (experimentState === 'RUNNING') {
+                socket.emit('pause');
+            } else if (experimentState === 'PAUSED') {
+                socket.emit('resume');
+            } else if (experimentState === 'BREAK') {
+                socket.emit('resume');
+            } else if (experimentState === 'LIKERT' && selectedLikert) {
+                socket.emit('submit_likert', { rating: selectedLikert });
+                socket.emit('resume');
+            }
         }
     });
 }
-
-function stopExperiment() {
-    console.log('Stopping experiment...');
-    state.socket.emit('stop');
-    
-    // Force UI reset after short delay in case server doesn't respond
-    setTimeout(() => {
-        state.experimentState = 'IDLE';
-        state.initialized = false;
-        showPanel('config');
-        elements.startBtn.disabled = false;
-        elements.startBtn.textContent = 'Initialize & Start';
-    }, 500);
-}
-
-function handleContinue() {
-    console.log('Continue clicked, state:', state.experimentState, 'likert:', state.selectedLikert);
-    
-    if (state.experimentState === 'LIKERT' && state.selectedLikert) {
-        state.socket.emit('submit_likert', { rating: state.selectedLikert });
-    }
-    state.socket.emit('resume');
-}
-
-function handleSpacebar() {
-    console.log('Spacebar pressed, state:', state.experimentState);
-    
-    switch (state.experimentState) {
-        case 'RUNNING':
-            state.socket.emit('pause');
-            break;
-        case 'PAUSED':
-            state.socket.emit('resume');
-            break;
-        case 'BREAK':
-            state.socket.emit('resume');
-            break;
-        case 'LIKERT':
-            if (state.selectedLikert) {
-                state.socket.emit('submit_likert', { rating: state.selectedLikert });
-                state.socket.emit('resume');
-            }
-            break;
-    }
-}
-
-// =============================================================================
-// Initialization
-// =============================================================================
-
-function init() {
-    connectSocket();
-    setupEventListeners();
-    
-    // Load initial categories
-    loadCategories('colors');
-    
-    // Initial summary
-    updateSummary();
-    
-    // Set initial visibility for likert scale row
-    if (elements.likertScaleRow && elements.enableLikert) {
-        elements.likertScaleRow.style.display = elements.enableLikert.checked ? 'flex' : 'none';
-    }
-    
-    console.log('EEG Imagery Experiment UI initialized');
-}
-
-// Start when DOM is ready
-document.addEventListener('DOMContentLoaded', init);
