@@ -42,6 +42,7 @@ class MarkerCode(IntEnum):
     CUE_COLOR_BASE = 100
     CUE_PRIMITIVE_BASE = 200
     CUE_COMPLEX_BASE = 300
+    CUE_FRUITS_BASE = 400
 
 
 # String markers corresponding to numeric codes
@@ -78,6 +79,11 @@ EXPERIMENT_TYPES = {
         "display_name": "Complex Objects",
         "audio_folder": "complex",
         "marker_base": MarkerCode.CUE_COMPLEX_BASE,
+    },
+    "fruits": {
+        "display_name": "Fruits",
+        "audio_folder": "fruits",
+        "marker_base": MarkerCode.CUE_FRUITS_BASE,
     },
 }
 
