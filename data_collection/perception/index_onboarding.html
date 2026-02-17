@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perception</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <!-- 1) CONFIG PANEL (visible by default) -->
+    <section id="config-panel" class="panel">
+      <header class="app-header">
+        <h1 class="app-title">PERCEPTION</h1>
+        <span id="status-pill" class="status-pill offline">OFFLINE</span>
+      </header>
+
+      <nav class="tab-nav" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="colors">COLORS</button>
+        <button type="button" class="tab-btn" data-tab="primitives">PRIMITIVES</button>
+        <button type="button" class="tab-btn" data-tab="complex">COMPLEX</button>
+      </nav>
+
+      <h2 class="section-heading">EXPERIMENT CONFIGURATION</h2>
+
+      <div class="form-group">
+        <label class="form-label" for="bridge-url">BRIDGE URL</label>
+        <div class="input-row">
+          <input type="text" id="bridge-url" value="ws://localhost:8765">
+          <button type="button" id="connect-btn" class="btn-primary">CONNECT TO LSL BRIDGE</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="stimulus-duration">STIMULUS DURATION (MS)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="stimulus-duration" value="3000" min="500" step="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="isi-duration">INTER-STIMULUS INTERVAL (MS)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="isi-duration" value="1000" min="200" step="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="repetitions">REPETITIONS PER STIMULUS</label>
+        <span class="config-number-wrap">
+          <input type="number" id="repetitions" value="3" min="1" max="20" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="trials-until-break">TRIALS UNTIL BREAK</label>
+        <span class="config-number-wrap">
+          <input type="number" id="trials-until-break" value="15" min="1" max="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">STIMULUS SELECTION</label>
+        <div id="stimuli-container" class="categories-grid"></div>
+        <div class="small-actions">
+          <button type="button" id="select-all-btn" class="btn-small">SELECT ALL</button>
+          <button type="button" id="deselect-all-btn" class="btn-small">DESELECT ALL</button>
+        </div>
+      </div>
+
+      <div id="shape-options" class="form-group hidden">
+        <label class="form-label" for="rotation-speed">ROTATION SPEED (RAD/S)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="rotation-speed" value="0.5" min="0" max="2" step="0.1" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label class="option-row">
+          <input type="checkbox" id="randomize-order" checked>
+          <span>Randomize trial order</span>
+        </label>
+        <label class="option-row">
+          <input type="checkbox" id="enable-likert" checked>
+          <span>Enable Likert scale during breaks</span>
+        </label>
+        <div id="likert-scale-row" class="option-row indent">
+          <label class="form-label" for="likert-scale">LIKERT SCALE</label>
+          <select id="likert-scale">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group summary-row">
+        <span>Total trials: <strong id="total-trials">0</strong></span>
+        <span>Estimated duration: <strong id="estimated-duration">0</strong> min</span>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="start-btn" class="btn-primary" disabled>CONNECT TO LSL BRIDGE FIRST</button>
+      </div>
+    </section>
+
+    <!-- ONBOARDING (3 independent full pages) -->
+    <section id="onboarding-panel" class="panel onboarding-panel hidden">
+      <div id="onboarding-page-1" class="onboarding-page hidden">
+        <div id="onboarding-visual-1" class="onboarding-visual-slot"></div>
+        <p id="onboarding-instruction-1" class="onboarding-instruction"></p>
+        <div class="onboarding-actions">
+          <button type="button" id="onboarding-next-1" class="onboarding-arrow-btn" aria-label="Next">→</button>
+        </div>
+      </div>
+      <div id="onboarding-page-2" class="onboarding-page onboarding-page-rest hidden">
+        <div class="onboarding-rest-spacer" aria-hidden="true"></div>
+        <p class="onboarding-rest-text">Between stimuli, there will be a short rest period.</p>
+        <div class="onboarding-actions">
+          <button type="button" id="onboarding-next-2" class="onboarding-arrow-btn" aria-label="Next">→</button>
+        </div>
+      </div>
+      <div id="onboarding-page-3" class="onboarding-page hidden">
+        <div id="onboarding-visual-3" class="onboarding-visual-slot"></div>
+        <p class="onboarding-instruction onboarding-instruction-3">This sequence will repeat multiple times during the experiment.</p>
+        <div class="onboarding-actions">
+          <button type="button" id="onboarding-continue" class="onboarding-arrow-btn" aria-label="Continue">→</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2) VR PANEL -->
+    <section id="vr-panel" class="panel hidden">
+      <div class="vr-session-cue" aria-hidden="true">
+        <div class="vr-cue-head"></div>
+        <div class="vr-cue-headset">
+          <div class="vr-cue-arrow vr-cue-arrow-l" aria-hidden="true"></div>
+          <div class="vr-cue-arrow vr-cue-arrow-r" aria-hidden="true"></div>
+          <div class="vr-cue-band"></div>
+          <div class="vr-cue-goggles">
+            <span class="vr-cue-lens vr-cue-lens-l"></span>
+            <span class="vr-cue-lens vr-cue-lens-r"></span>
+          </div>
+        </div>
+      </div>
+      <h2 class="panel-title">READY FOR VR</h2>
+      <p class="panel-text">Put on your headset and click Enter VR when ready.</p>
+      <div class="actions">
+        <button type="button" id="enter-vr-btn" class="btn-primary">ENTER VR</button>
+        <button type="button" id="cancel-vr-btn" class="btn-secondary">CANCEL</button>
+      </div>
+    </section>
+
+    <!-- 3) RUNNING PANEL -->
+    <section id="running-panel" class="panel hidden">
+      <div class="progress-row">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <span id="progress-text" class="progress-text">0 / 0</span>
+      </div>
+      <div id="phase-indicator" class="phase-indicator">VR ACTIVE</div>
+      <div id="current-stimulus" class="current-stimulus">—</div>
+      <div id="state-message" class="state-message">—</div>
+      <div class="actions">
+        <button type="button" id="pause-btn" class="btn-secondary">PAUSE (SPACE)</button>
+        <button type="button" id="stop-btn" class="btn-primary">STOP EXPERIMENT</button>
+      </div>
+      <p class="footer-hint">PRESS SPACE TO PAUSE | ESC TO STOP</p>
+    </section>
+
+    <!-- 4) BREAK PANEL -->
+    <section id="break-panel" class="panel hidden">
+      <h2 class="panel-title">BREAK TIME</h2>
+      <p id="break-progress" class="panel-text">COMPLETED: 0 / 0 TRIALS</p>
+      <div id="likert-container" class="form-group">
+        <label class="form-label">RATING (1–<span id="likert-max">5</span>)</label>
+        <div id="likert-options" class="likert-options"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="continue-btn" class="btn-primary" disabled>SELECT RATING TO CONTINUE</button>
+      </div>
+    </section>
+
+    <!-- 5) COMPLETE PANEL -->
+    <section id="complete-panel" class="panel hidden">
+      <h2 class="panel-title">EXPERIMENT COMPLETE</h2>
+      <div class="summary-lines">
+        <p>Session ID: <span id="session-id">—</span></p>
+        <p>Total trials: <span id="completed-trials">—</span></p>
+        <p>Markers sent: <span id="markers-sent">—</span></p>
+      </div>
+      <div class="actions">
+        <button type="button" id="restart-btn" class="btn-primary">RESTART EXPERIMENT</button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
