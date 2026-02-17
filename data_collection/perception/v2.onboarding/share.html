@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perception — Experiment Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+*{box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;margin:0;padding:1.5rem;background:#292929;color:#A5A7A8;min-height:100vh}
+main{max-width:520px;margin:0 auto}
+.hidden{display:none}
+.app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.app-title{font-family:'Space Mono',monospace;font-size:1.25rem;font-weight:700;margin:0;letter-spacing:0.05em;color:#D5A84C}
+.status-pill{font-family:'Space Mono',monospace;font-size:0.7rem;letter-spacing:0.08em;padding:0.35rem 0.65rem;border-radius:999px;border:1px solid #3A3A3A}
+.status-pill.offline{background:#4B4B4B;color:rgba(165,167,168,0.65);border-color:#3A3A3A}
+.status-pill.online{background:#4B4B4B;color:#D5A84C;border-color:#D5A84C}
+.tab-nav{display:flex;gap:0.25rem;margin-bottom:1.5rem}
+.tab-btn{font-family:'Space Mono',monospace;font-size:0.75rem;letter-spacing:0.05em;padding:0.5rem 0.75rem;background:#4B4B4B;color:#A5A7A8;border:1px solid #3A3A3A;border-radius:4px;cursor:pointer}
+.tab-btn:hover{color:#A5A7A8;border-color:#3A3A3A}
+.tab-btn.active{background:#4B4B4B;color:#D5A84C;border-color:#3A3A3A}
+.panel{background:#4B4B4B;border:1px solid #3A3A3A;border-radius:8px;padding:1.5rem}
+.section-heading,.panel-title{font-family:'Space Mono',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em;color:#D5A84C;margin:0 0 1rem}
+.panel-text{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;margin:0 0 1rem}
+.form-group{margin-bottom:1.25rem}
+.form-label{display:block;font-family:'Space Mono',monospace;font-size:0.7rem;letter-spacing:0.08em;color:#D5A84C;margin-bottom:0.4rem}
+input[type="text"],input[type="number"],select{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;width:100%;max-width:100%;padding:0.5rem 0.75rem;background:#292929;color:#A5A7A8;border:1px solid #3A3A3A;border-radius:4px}
+input:focus,select:focus{outline:none;border-color:#3A3A3A;box-shadow:0 0 0 1px #3A3A3A}
+input[type="number"]{max-width:8rem}
+#config-panel .config-number-wrap{position:relative;display:block;max-width:8rem}
+#config-panel .config-number-wrap input[type="number"]{padding-right:2rem;-moz-appearance:textfield;appearance:textfield;cursor:default;caret-color:transparent}
+#config-panel .config-number-wrap input[type="number"]:focus{outline:none;box-shadow:none}
+#config-panel .config-number-wrap input[type="number"][readonly]{pointer-events:none}
+#config-panel .config-number-wrap input[type="number"]::-webkit-outer-spin-button,#config-panel .config-number-wrap input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#config-panel .config-number-arrow{position:absolute;right:2px;min-width:22px;min-height:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.9;pointer-events:auto}
+#config-panel .config-number-arrow::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent}
+#config-panel .config-number-arrow:hover{opacity:1}
+#config-panel .config-number-arrow-up{top:6px;bottom:auto;z-index:2}
+#config-panel .config-number-arrow-up::before{border-bottom:6px solid #A5A7A8}
+#config-panel .config-number-arrow-down{top:auto;bottom:6px;z-index:1}
+#config-panel .config-number-arrow-down::before{border-top:6px solid #A5A7A8}
+.input-row{display:flex;flex-direction:column;gap:0.5rem}
+.option-row{display:flex;align-items:center;gap:0.5rem;font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;margin-bottom:0.5rem;cursor:pointer}
+.option-row.indent{margin-left:1.5rem;margin-top:0.25rem}
+.option-row input[type="checkbox"]{width:auto;margin:0}
+.option-row select{width:auto;min-width:4rem;margin-left:0.25rem}
+.summary-row{display:flex;flex-wrap:wrap;gap:1rem;font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8}
+.summary-row strong{color:#A5A7A8}
+.actions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:1.25rem}
+button{font-family:'Space Mono',monospace;font-size:0.75rem;letter-spacing:0.05em;padding:0.6rem 1rem;border-radius:4px;cursor:pointer}
+button:hover:not(:disabled){filter:brightness(1.1)}
+button:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:#D5A84C;color:#292929;border:1px solid #D5A84C}
+.btn-secondary{background:transparent;color:#A5A7A8;border:1px solid #3A3A3A}
+.btn-secondary:hover:not(:disabled){border-color:#3A3A3A;background:#4B4B4B}
+.btn-small{font-size:0.65rem;padding:0.35rem 0.6rem;background:#4B4B4B;color:#A5A7A8;border:1px solid #3A3A3A}
+.btn-small:hover{color:#D5A84C;border-color:#3A3A3A}
+.small-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+.categories-grid{display:flex;flex-wrap:wrap;gap:0.5rem}
+.stimulus-chip{font-family:'Space Mono',monospace;font-size:0.75rem;letter-spacing:0.03em;padding:0.5rem 0.75rem;background:#292929;color:#A5A7A8;border:1px solid #3A3A3A;border-radius:4px;cursor:pointer}
+.stimulus-chip:hover{border-color:#3A3A3A;color:#A5A7A8}
+.stimulus-chip.selected{background:#4B4B4B;color:#D5A84C;border-color:#D5A84C}
+.vr-session-cue{width:100px;height:120px;margin:0 auto 1.5rem;position:relative}
+.vr-cue-headset{animation:vr-cue-float 2.5s ease-in-out infinite}
+@keyframes vr-cue-float{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,calc(-50% - 6px))}}
+.vr-cue-head{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:88px;background:#292929;border:1px solid #3A3A3A;border-radius:50%;box-shadow:inset 0 0 20px rgba(0,0,0,0.3)}
+.vr-cue-headset{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:88px;height:52px;pointer-events:none}
+.vr-cue-arrow{position:absolute;top:50%;transform:translateY(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #3A3A3A}
+.vr-cue-arrow-l{left:-16px}
+.vr-cue-arrow-r{right:-16px}
+.vr-cue-band{position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:76px;height:14px;background:transparent;border:1px solid #3A3A3A;border-bottom:none;border-radius:38px 38px 0 0;box-shadow:0 -1px 0 0 #3A3A3A}
+.vr-cue-goggles{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:80px;height:28px;background:#4B4B4B;border:1px solid #3A3A3A;border-radius:8px;box-shadow:inset 0 0 12px rgba(0,0,0,0.3),0 0 1px rgba(165,167,168,0.1)}
+.vr-cue-lens{position:absolute;top:4px;width:34px;height:18px;background:#292929;border:1px solid #3A3A3A;border-radius:4px;box-shadow:inset 0 0 8px rgba(0,0,0,0.4)}
+.vr-cue-lens-l{left:4px}
+.vr-cue-lens-r{right:4px}
+.vr-session-cue .vr-cue-goggles{animation:vr-cue-glow 3s ease-in-out infinite}
+@keyframes vr-cue-glow{0%,100%{box-shadow:inset 0 0 12px rgba(0,0,0,0.3),0 0 1px rgba(165,167,168,0.1)}50%{box-shadow:inset 0 0 14px rgba(0,0,0,0.2),0 0 1px rgba(165,167,168,0.15)}}
+.onboarding-panel{position:relative;min-height:380px}
+.onboarding-page{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem;padding-bottom:4rem;background:#4B4B4B;border-radius:8px;border:1px solid #3A3A3A}
+.onboarding-page.hidden{display:none}
+.onboarding-visual-slot{width:100%;flex:1;min-height:200px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
+.onboarding-instruction{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;text-align:center;margin:0 0 1rem;max-width:320px}
+.onboarding-actions{position:absolute;bottom:1.5rem;right:1.5rem;margin:0;width:auto;display:flex;justify-content:flex-end}
+.onboarding-arrow-btn{width:48px;height:48px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;line-height:1;color:#A5A7A8;background:transparent;border:1px solid #3A3A3A;border-radius:50%;cursor:pointer}
+.onboarding-arrow-btn:hover{border-color:#3A3A3A;color:#D5A84C;background:#4B4B4B}
+.onboarding-page-rest{background:#292929;justify-content:flex-start}
+.onboarding-rest-spacer{width:100%;flex:1;min-height:200px}
+.onboarding-rest-text{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;text-align:center;margin:0 0 1rem;max-width:320px}
+.onboarding-color-circle{width:220px;height:220px;border-radius:50%;position:relative;background:#A0BF52;opacity:0.9;animation:colorBreath 3.2s ease-in-out infinite}
+.onboarding-color-circle::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(160,191,82,0) 0%,rgba(160,191,82,0) 78%,rgba(160,191,82,0.55) 86%,rgba(160,191,82,0) 100%);animation:ringBreath 3.2s ease-in-out infinite}
+@keyframes colorBreath{0%,100%{transform:scale(0.985);opacity:0.85}50%{transform:scale(1.015);opacity:0.95}}
+@keyframes ringBreath{0%,100%{opacity:0.35}50%{opacity:0.85}}
+.onboarding-3d-scene{width:140px;height:140px;perspective:200px;display:flex;align-items:center;justify-content:center;cursor:grab}
+.onboarding-3d-scene:active{cursor:grabbing}
+.onboarding-3d-object{width:80px;height:80px;transform-style:preserve-3d}
+.onboarding-3d-sphere{width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 28% 24%,rgba(230,160,120,0.95),rgba(180,100,60,0.9) 40%,rgba(100,55,35,0.85) 70%,rgba(60,35,20,0.9) 100%);box-shadow:inset -6px -10px 20px rgba(0,0,0,0.4),inset 4px 4px 12px rgba(255,255,255,0.15),0 10px 28px rgba(0,0,0,0.35)}
+.onboarding-3d-cube{width:64px;height:64px;position:relative;transform-style:preserve-3d}
+.onboarding-3d-cube-face{position:absolute;width:64px;height:64px;background:#D5A84C;border:1px solid #3A3A3A;display:flex;align-items:center;justify-content:center;backface-visibility:visible;font-size:0.6rem;color:#292929}
+.onboarding-3d-cube .face-front{background:#D5A84C;filter:brightness(1)}
+.onboarding-3d-cube .face-back{background:#D5A84C;filter:brightness(0.75)}
+.onboarding-3d-cube .face-right{background:#D5A84C;filter:brightness(0.92)}
+.onboarding-3d-cube .face-left{background:#D5A84C;filter:brightness(0.85)}
+.onboarding-3d-cube .face-top{background:#D5A84C;filter:brightness(1.12)}
+.onboarding-3d-cube .face-bottom{background:#D5A84C;filter:brightness(0.7)}
+.onboarding-3d-cube .face-front{transform:translateZ(32px)}
+.onboarding-3d-cube .face-back{transform:rotateY(180deg) translateZ(32px)}
+.onboarding-3d-cube .face-right{transform:rotateY(90deg) translateZ(32px)}
+.onboarding-3d-cube .face-left{transform:rotateY(-90deg) translateZ(32px)}
+.onboarding-3d-cube .face-top{transform:rotateX(90deg) translateZ(32px)}
+.onboarding-3d-cube .face-bottom{transform:rotateX(-90deg) translateZ(32px)}
+.progress-row{display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem}
+.progress-bar{flex:1;height:6px;background:#292929;border-radius:3px;overflow:hidden;border:1px solid #3A3A3A}
+.progress-fill{height:100%;width:0;background:#D5A84C;border-radius:2px;transition:width 0.2s ease}
+.progress-text{font-family:'Space Mono',monospace;font-size:0.75rem;color:#A5A7A8;min-width:4rem}
+.phase-indicator{font-family:'Space Mono',monospace;font-size:0.75rem;letter-spacing:0.08em;color:#D5A84C;margin-bottom:0.75rem}
+.current-stimulus{font-family:'Inter',system-ui,sans-serif;font-size:1.1rem;color:#A5A7A8;margin-bottom:0.5rem}
+.state-message{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:rgba(165,167,168,0.65);margin-bottom:1rem}
+.footer-hint{font-family:'Inter',system-ui,sans-serif;font-size:0.7rem;color:rgba(165,167,168,0.65);margin:1rem 0 0}
+.likert-options{display:flex;flex-wrap:wrap;gap:0.5rem}
+.likert-options label{display:inline-flex;align-items:center;gap:0.35rem;font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;cursor:pointer}
+.likert-options input[type="radio"]{width:auto;margin:0}
+.summary-lines{font-family:'Inter',system-ui,sans-serif;font-size:0.9rem;color:#A5A7A8;margin-bottom:1rem}
+.summary-lines p{margin:0.35rem 0}
+.summary-lines span{color:#A5A7A8}
+  </style>
+</head>
+<body>
+  <main>
+    <section id="config-panel" class="panel">
+      <header class="app-header">
+        <h1 class="app-title">PERCEPTION</h1>
+        <span id="status-pill" class="status-pill offline">OFFLINE</span>
+      </header>
+      <nav class="tab-nav" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="colors">COLORS</button>
+        <button type="button" class="tab-btn" data-tab="primitives">PRIMITIVES</button>
+        <button type="button" class="tab-btn" data-tab="complex">COMPLEX</button>
+      </nav>
+      <h2 class="section-heading">EXPERIMENT CONFIGURATION</h2>
+      <div class="form-group">
+        <label class="form-label" for="bridge-url">BRIDGE URL</label>
+        <div class="input-row">
+          <input type="text" id="bridge-url" value="ws://localhost:8765">
+          <button type="button" id="connect-btn" class="btn-primary">CONNECT TO LSL BRIDGE</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="stimulus-duration">STIMULUS DURATION (MS)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="stimulus-duration" value="3000" min="500" step="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="isi-duration">INTER-STIMULUS INTERVAL (MS)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="isi-duration" value="1000" min="200" step="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="repetitions">REPETITIONS PER STIMULUS</label>
+        <span class="config-number-wrap">
+          <input type="number" id="repetitions" value="3" min="1" max="20" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="trials-until-break">TRIALS UNTIL BREAK</label>
+        <span class="config-number-wrap">
+          <input type="number" id="trials-until-break" value="15" min="1" max="100" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">STIMULUS SELECTION</label>
+        <div id="stimuli-container" class="categories-grid"></div>
+        <div class="small-actions">
+          <button type="button" id="select-all-btn" class="btn-small">SELECT ALL</button>
+          <button type="button" id="deselect-all-btn" class="btn-small">DESELECT ALL</button>
+        </div>
+      </div>
+      <div id="shape-options" class="form-group hidden">
+        <label class="form-label" for="rotation-speed">ROTATION SPEED (RAD/S)</label>
+        <span class="config-number-wrap">
+          <input type="number" id="rotation-speed" value="0.5" min="0" max="2" step="0.1" readonly tabindex="-1" aria-readonly="true">
+          <span class="config-number-arrow config-number-arrow-up" role="button" tabindex="0" aria-label="Increase"></span>
+          <span class="config-number-arrow config-number-arrow-down" role="button" tabindex="0" aria-label="Decrease"></span>
+        </span>
+      </div>
+      <div class="form-group">
+        <label class="option-row"><input type="checkbox" id="randomize-order" checked><span>Randomize trial order</span></label>
+        <label class="option-row"><input type="checkbox" id="enable-likert" checked><span>Enable Likert scale during breaks</span></label>
+        <div id="likert-scale-row" class="option-row indent">
+          <label class="form-label" for="likert-scale">LIKERT SCALE</label>
+          <select id="likert-scale"><option value="3">3</option><option value="5" selected>5</option></select>
+        </div>
+      </div>
+      <div class="form-group summary-row">
+        <span>Total trials: <strong id="total-trials">0</strong></span>
+        <span>Estimated duration: <strong id="estimated-duration">0</strong> min</span>
+      </div>
+      <div class="actions">
+        <button type="button" id="start-btn" class="btn-primary" disabled>CONNECT TO LSL BRIDGE FIRST</button>
+      </div>
+    </section>
+    <section id="onboarding-panel" class="panel onboarding-panel hidden">
+      <div id="onboarding-page-1" class="onboarding-page hidden">
+        <div id="onboarding-visual-1" class="onboarding-visual-slot"></div>
+        <p id="onboarding-instruction-1" class="onboarding-instruction"></p>
+        <div class="onboarding-actions"><button type="button" id="onboarding-next-1" class="onboarding-arrow-btn" aria-label="Next">→</button></div>
+      </div>
+      <div id="onboarding-page-2" class="onboarding-page onboarding-page-rest hidden">
+        <div class="onboarding-rest-spacer" aria-hidden="true"></div>
+        <p class="onboarding-rest-text">Between stimuli, there will be a short rest period.</p>
+        <div class="onboarding-actions"><button type="button" id="onboarding-next-2" class="onboarding-arrow-btn" aria-label="Next">→</button></div>
+      </div>
+      <div id="onboarding-page-3" class="onboarding-page hidden">
+        <div id="onboarding-visual-3" class="onboarding-visual-slot"></div>
+        <p class="onboarding-instruction onboarding-instruction-3">This sequence will repeat multiple times during the experiment.</p>
+        <div class="onboarding-actions"><button type="button" id="onboarding-continue" class="onboarding-arrow-btn" aria-label="Continue">→</button></div>
+      </div>
+    </section>
+    <section id="vr-panel" class="panel hidden">
+      <div class="vr-session-cue" aria-hidden="true">
+        <div class="vr-cue-head"></div>
+        <div class="vr-cue-headset">
+          <div class="vr-cue-arrow vr-cue-arrow-l" aria-hidden="true"></div>
+          <div class="vr-cue-arrow vr-cue-arrow-r" aria-hidden="true"></div>
+          <div class="vr-cue-band"></div>
+          <div class="vr-cue-goggles">
+            <span class="vr-cue-lens vr-cue-lens-l"></span>
+            <span class="vr-cue-lens vr-cue-lens-r"></span>
+          </div>
+        </div>
+      </div>
+      <h2 class="panel-title">READY FOR VR</h2>
+      <p class="panel-text">Put on your headset and click Enter VR when ready.</p>
+      <div class="actions">
+        <button type="button" id="enter-vr-btn" class="btn-primary">ENTER VR</button>
+        <button type="button" id="cancel-vr-btn" class="btn-secondary">CANCEL</button>
+      </div>
+    </section>
+    <section id="running-panel" class="panel hidden">
+      <div class="progress-row">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <span id="progress-text" class="progress-text">0 / 0</span>
+      </div>
+      <div id="phase-indicator" class="phase-indicator">VR ACTIVE</div>
+      <div id="current-stimulus" class="current-stimulus">—</div>
+      <div id="state-message" class="state-message">—</div>
+      <div class="actions">
+        <button type="button" id="pause-btn" class="btn-secondary">PAUSE (SPACE)</button>
+        <button type="button" id="stop-btn" class="btn-primary">STOP EXPERIMENT</button>
+      </div>
+      <p class="footer-hint">PRESS SPACE TO PAUSE | ESC TO STOP</p>
+    </section>
+    <section id="break-panel" class="panel hidden">
+      <h2 class="panel-title">BREAK TIME</h2>
+      <p id="break-progress" class="panel-text">COMPLETED: 0 / 0 TRIALS</p>
+      <div id="likert-container" class="form-group">
+        <label class="form-label">RATING (1–<span id="likert-max">5</span>)</label>
+        <div id="likert-options" class="likert-options"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="continue-btn" class="btn-primary" disabled>SELECT RATING TO CONTINUE</button>
+      </div>
+    </section>
+    <section id="complete-panel" class="panel hidden">
+      <h2 class="panel-title">EXPERIMENT COMPLETE</h2>
+      <div class="summary-lines">
+        <p>Session ID: <span id="session-id">—</span></p>
+        <p>Total trials: <span id="completed-trials">—</span></p>
+        <p>Markers sent: <span id="markers-sent">—</span></p>
+      </div>
+      <div class="actions">
+        <button type="button" id="restart-btn" class="btn-primary">RESTART EXPERIMENT</button>
+      </div>
+    </section>
+  </main>
+  <script>
+(function(){'use strict';
+var STIMULI={colors:['Red','Green','Blue','Yellow'],primitives:['Sphere','Cube','Cylinder'],complex:['Torus','Pyramid','Octahedron']};
+var state={connected:false,activeTab:'colors',enableLikert:true,likertScale:5,selectedStimuli:new Set(),totalTrials:0,estimatedMinutes:0,currentTrial:0,completedBeforeBreak:0};
+var panels={config:document.getElementById('config-panel'),onboarding:document.getElementById('onboarding-panel'),vr:document.getElementById('vr-panel'),running:document.getElementById('running-panel'),break:document.getElementById('break-panel'),complete:document.getElementById('complete-panel')};
+var onboardingPage1=document.getElementById('onboarding-page-1'),onboardingPage2=document.getElementById('onboarding-page-2'),onboardingPage3=document.getElementById('onboarding-page-3');
+var onboardingVisual1=document.getElementById('onboarding-visual-1'),onboardingVisual3=document.getElementById('onboarding-visual-3'),onboardingInstruction1=document.getElementById('onboarding-instruction-1');
+var onboardingNext1=document.getElementById('onboarding-next-1'),onboardingNext2=document.getElementById('onboarding-next-2'),onboardingContinue=document.getElementById('onboarding-continue');
+var statusPill=document.getElementById('status-pill'),connectBtn=document.getElementById('connect-btn'),startBtn=document.getElementById('start-btn');
+var stimulusDuration=document.getElementById('stimulus-duration'),isiDuration=document.getElementById('isi-duration'),repetitions=document.getElementById('repetitions');
+var stimuliContainer=document.getElementById('stimuli-container'),selectAllBtn=document.getElementById('select-all-btn'),deselectAllBtn=document.getElementById('deselect-all-btn'),shapeOptions=document.getElementById('shape-options');
+var enableLikert=document.getElementById('enable-likert'),likertScaleSelect=document.getElementById('likert-scale'),likertScaleRow=document.getElementById('likert-scale-row');
+var totalTrialsEl=document.getElementById('total-trials'),estimatedDurationEl=document.getElementById('estimated-duration');
+var enterVrBtn=document.getElementById('enter-vr-btn'),cancelVrBtn=document.getElementById('cancel-vr-btn'),progressFill=document.getElementById('progress-fill'),progressText=document.getElementById('progress-text');
+var phaseIndicator=document.getElementById('phase-indicator'),currentStimulus=document.getElementById('current-stimulus'),stateMessage=document.getElementById('state-message'),pauseBtn=document.getElementById('pause-btn'),stopBtn=document.getElementById('stop-btn');
+var breakProgress=document.getElementById('break-progress'),likertContainer=document.getElementById('likert-container'),likertOptions=document.getElementById('likert-options'),likertMax=document.getElementById('likert-max'),continueBtn=document.getElementById('continue-btn');
+var sessionId=document.getElementById('session-id'),completedTrialsEl=document.getElementById('completed-trials'),markersSent=document.getElementById('markers-sent'),restartBtn=document.getElementById('restart-btn');
+function showOnly(panel){Object.keys(panels).forEach(function(k){panels[k].classList.add('hidden');});panel.classList.remove('hidden');}
+var ONBOARDING_INSTRUCTIONS={colors:'You will see a visual stimulus on the screen.',primitives:'You will see a three-dimensional object.',complex:'You will see a three-dimensional visual stimulus.'};
+function showOnboardingPage(num){onboardingPage1.classList.toggle('hidden',num!==1);onboardingPage2.classList.toggle('hidden',num!==2);onboardingPage3.classList.toggle('hidden',num!==3);}
+function buildOnboardingVisual(container,mode){container.innerHTML='';if(mode==='colors'){var c=document.createElement('div');c.className='onboarding-color-circle';container.appendChild(c);return;}
+if(mode==='primitives'){var s=document.createElement('div');s.className='onboarding-3d-scene';var o=document.createElement('div');o.className='onboarding-3d-object onboarding-3d-sphere';s.appendChild(o);container.appendChild(s);setup3D(s,o);return;}
+if(mode==='complex'){var sc=document.createElement('div');sc.className='onboarding-3d-scene';var cu=document.createElement('div');cu.className='onboarding-3d-object onboarding-3d-cube';['front','back','right','left','top','bottom'].forEach(function(f){var fe=document.createElement('div');fe.className='onboarding-3d-cube-face face-'+f;cu.appendChild(fe);});sc.appendChild(cu);container.appendChild(sc);setup3D(sc,cu);return;}}
+function setup3D(scene,obj){var rotX=8,rotY=0,floatPhase=0,lastTime=null;function animate(time){if(lastTime===null)lastTime=time;var dt=(time-lastTime)/1000;lastTime=time;if(!scene._dragActive){rotY+=15*dt;if(rotY>=360)rotY-=360;if(rotY<0)rotY+=360;}floatPhase+=dt*0.8;var y=3*Math.sin(floatPhase);obj.style.transform='translateY('+y+'px) rotateX('+rotX+'deg) rotateY('+rotY+'deg)';scene._animId=requestAnimationFrame(animate);}scene._animId=requestAnimationFrame(animate);scene._dragActive=false;scene._rotX=rotX;scene._rotY=rotY;scene._startRotX=0;scene._startRotY=0;scene.addEventListener('mousedown',function(e){e.preventDefault();scene._dragActive=true;scene._startX=e.clientX;scene._startY=e.clientY;scene._startRotX=scene._rotX;scene._startRotY=scene._rotY;});document.addEventListener('mousemove',function(e){if(!scene._dragActive)return;scene._rotX=scene._startRotX+(e.clientY-scene._startY)*0.4;scene._rotY=scene._startRotY+(e.clientX-scene._startX)*0.4;});document.addEventListener('mouseup',function(){if(scene._dragActive)scene._dragActive=false;});}
+function startOnboarding(){showOnly(panels.onboarding);showOnboardingPage(1);onboardingInstruction1.textContent=ONBOARDING_INSTRUCTIONS[state.activeTab]||ONBOARDING_INSTRUCTIONS.colors;buildOnboardingVisual(onboardingVisual1,state.activeTab);}
+function getStimuliForTab(){return STIMULI[state.activeTab]||[];}
+function renderStimuli(){var list=getStimuliForTab();stimuliContainer.innerHTML='';list.forEach(function(name){var chip=document.createElement('button');chip.type='button';chip.className='stimulus-chip'+(state.selectedStimuli.has(name)?' selected':'');chip.textContent=name;chip.dataset.stimulus=name;chip.addEventListener('click',function(){if(state.selectedStimuli.has(name))state.selectedStimuli.delete(name);else state.selectedStimuli.add(name);chip.classList.toggle('selected',state.selectedStimuli.has(name));updateSummary();});stimuliContainer.appendChild(chip);});}
+function updateShapeOptionsVisibility(){if(state.activeTab==='primitives'||state.activeTab==='complex')shapeOptions.classList.remove('hidden');else shapeOptions.classList.add('hidden');}
+function updateLikertScaleRow(){likertScaleRow.classList.toggle('hidden',!enableLikert.checked);}
+function computeTotalTrials(){var n=state.selectedStimuli.size*(parseInt(repetitions.value,10)||0);state.totalTrials=n;return n;}
+function computeEstimatedMinutes(){var stim=parseInt(stimulusDuration.value,10)||0,isi=parseInt(isiDuration.value,10)||0;state.estimatedMinutes=state.totalTrials*(stim+isi)/1000/60;return state.estimatedMinutes;}
+function updateSummary(){computeTotalTrials();computeEstimatedMinutes();totalTrialsEl.textContent=state.totalTrials;estimatedDurationEl.textContent=state.estimatedMinutes.toFixed(1);}
+function renderBreakLikert(){var scale=parseInt(likertScaleSelect.value,10)||5;state.likertScale=scale;likertMax.textContent=scale;likertOptions.innerHTML='';for(var i=1;i<=scale;i++){var lab=document.createElement('label'),rad=document.createElement('input');rad.type='radio';rad.name='break-likert';rad.value=String(i);rad.addEventListener('change',function(){continueBtn.disabled=false;continueBtn.textContent='CONTINUE';});lab.appendChild(rad);lab.appendChild(document.createTextNode(' '+i));likertOptions.appendChild(lab);}}
+function setConnection(connected){state.connected=connected;if(connected){statusPill.textContent='ONLINE';statusPill.classList.remove('offline');statusPill.classList.add('online');startBtn.disabled=false;startBtn.textContent='START EXPERIMENT';}else{statusPill.textContent='OFFLINE';statusPill.classList.remove('online');statusPill.classList.add('offline');startBtn.disabled=true;startBtn.textContent='CONNECT TO LSL BRIDGE FIRST';}}
+function resetToConfig(){state.connected=false;state.activeTab='colors';state.selectedStimuli.clear();state.currentTrial=0;state.completedBeforeBreak=0;setConnection(false);document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab==='colors');});state.activeTab='colors';renderStimuli();updateShapeOptionsVisibility();updateSummary();continueBtn.disabled=true;continueBtn.textContent='SELECT RATING TO CONTINUE';showOnly(panels.config);}
+document.querySelectorAll('.tab-btn').forEach(function(btn){btn.addEventListener('click',function(){var tab=btn.dataset.tab;if(!tab)return;state.activeTab=tab;document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===tab);});renderStimuli();updateShapeOptionsVisibility();updateSummary();});});
+selectAllBtn.addEventListener('click',function(){getStimuliForTab().forEach(function(n){state.selectedStimuli.add(n);});renderStimuli();updateSummary();});
+deselectAllBtn.addEventListener('click',function(){getStimuliForTab().forEach(function(n){state.selectedStimuli.delete(n);});renderStimuli();updateSummary();});
+enableLikert.addEventListener('change',function(){state.enableLikert=enableLikert.checked;updateLikertScaleRow();});
+likertScaleSelect.addEventListener('change',function(){state.likertScale=parseInt(likertScaleSelect.value,10)||5;});
+[stimulusDuration,isiDuration,repetitions].forEach(function(el){el.addEventListener('input',updateSummary);});
+panels.config.addEventListener('click',function(e){var wrap=e.target.closest('.config-number-wrap');if(!wrap)return;var input=wrap.querySelector('input[type="number"]');if(!input)return;if(e.target.classList.contains('config-number-arrow-up')){input.stepUp();updateSummary();}else if(e.target.classList.contains('config-number-arrow-down')){input.stepDown();updateSummary();}});
+connectBtn.addEventListener('click',function(){setConnection(true);});
+startBtn.addEventListener('click',function(){if(!state.connected)return;startOnboarding();});
+onboardingNext1.addEventListener('click',function(){var s1=onboardingVisual1.querySelector('.onboarding-3d-scene');if(s1&&s1._animId!=null)cancelAnimationFrame(s1._animId);showOnboardingPage(2);});
+onboardingNext2.addEventListener('click',function(){showOnboardingPage(3);buildOnboardingVisual(onboardingVisual3,state.activeTab);});
+onboardingContinue.addEventListener('click',function(){var s=onboardingVisual3.querySelector('.onboarding-3d-scene');if(s&&s._animId!=null)cancelAnimationFrame(s._animId);showOnly(panels.vr);});
+cancelVrBtn.addEventListener('click',function(){showOnly(panels.config);});
+enterVrBtn.addEventListener('click',function(){state.currentTrial=0;state.totalTrials=computeTotalTrials();progressText.textContent='0 / '+state.totalTrials;progressFill.style.width='0%';phaseIndicator.textContent='VR ACTIVE';currentStimulus.textContent='—';stateMessage.textContent='—';showOnly(panels.running);});
+pauseBtn.addEventListener('click',function(){state.completedBeforeBreak=state.currentTrial;breakProgress.textContent='COMPLETED: '+state.currentTrial+' / '+state.totalTrials+' TRIALS';state.enableLikert=enableLikert.checked;if(state.enableLikert){likertContainer.classList.remove('hidden');renderBreakLikert();continueBtn.disabled=true;continueBtn.textContent='SELECT RATING TO CONTINUE';}else{likertContainer.classList.add('hidden');continueBtn.disabled=false;continueBtn.textContent='CONTINUE';}showOnly(panels.break);});
+continueBtn.addEventListener('click',function(){showOnly(panels.running);});
+stopBtn.addEventListener('click',function(){sessionId.textContent='session-'+Date.now();completedTrialsEl.textContent=state.totalTrials;markersSent.textContent=String(state.totalTrials+10);showOnly(panels.complete);});
+restartBtn.addEventListener('click',function(){resetToConfig();});
+document.addEventListener('keydown',function(e){if(e.code==='Space'&&!panels.running.classList.contains('hidden')){e.preventDefault();pauseBtn.click();}if(e.code==='Escape'&&(!panels.running.classList.contains('hidden')||!panels.break.classList.contains('hidden'))){e.preventDefault();stopBtn.click();}});
+updateLikertScaleRow();renderStimuli();updateShapeOptionsVisibility();updateSummary();
+})();
+  </script>
+</body>
+</html>

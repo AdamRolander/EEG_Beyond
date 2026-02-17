@@ -1,0 +1,8 @@
+{
+  "name": "cogs189-experiment-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve . -p 3000"
+  }
+}
