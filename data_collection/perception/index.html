@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <main>
@@ -15,7 +15,7 @@
     <section id="config-panel" class="panel">
       <header class="app-header">
         <h1 class="app-title">PERCEPTION</h1>
-        <span id="status-pill" class="status-pill offline">OFFLINE</span>
+        <div id="connection-status" class="status disconnected">Offline</div>
       </header>
 
       <nav class="tab-nav" role="tablist">
@@ -116,8 +116,8 @@
       </div>
     </section>
 
-    <!-- 3) RUNNING PANEL -->
-    <section id="running-panel" class="panel hidden">
+    <!-- 3) EXPERIMENT PANEL -->
+    <section id="experiment-panel" class="panel hidden">
       <div class="progress-row">
         <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
         <span id="progress-text" class="progress-text">0 / 0</span>
@@ -158,6 +158,12 @@
       </div>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/stimuli.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/experiment.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
