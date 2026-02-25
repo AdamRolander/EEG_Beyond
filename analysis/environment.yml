@@ -1,0 +1,29 @@
+name: eeg-tricontrastive
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - scikit-learn
+  - jupyterlab
+  - ipykernel
+  - tqdm
+  - h5py
+  - pip
+  # PyTorch (MPS-compatible for Apple Silicon)
+  - pytorch::pytorch>=2.1
+  - pytorch::torchvision
+  - pip:
+      - mne>=1.6
+      - mne-icalabel
+      - autoreject
+      - pyprep
+      - umap-learn
+      - transformers # for CLIP image encoder
+      - open-clip-torch
+      - seaborn
