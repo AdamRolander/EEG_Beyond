@@ -153,9 +153,9 @@ def on_initialize(data):
         
         config = ExperimentConfig(
             experiment_type=data.get('experiment_type', 'colors'),
-            visualization_duration_ms=int(data.get('visualization_duration_ms', 3000)),
+            visualization_duration_ms=int(data.get('visualization_duration_ms', 4000)),
             pre_recording_buffer_ms=int(data.get('pre_recording_buffer_ms', 500)),
-            inter_trial_gap_ms=int(data.get('inter_trial_gap_ms', 1000)),
+            inter_trial_gap_ms=int(data.get('inter_trial_gap_ms', 5000)),
             trials_per_category=int(data.get('trials_per_category', 10)),
             trials_until_break=int(data.get('trials_until_break', 15)),
             enabled_categories=data.get('enabled_categories', []),
@@ -163,7 +163,9 @@ def on_initialize(data):
             enable_end_beep=data.get('enable_end_beep', True),
             enable_likert=data.get('enable_likert', True),
             likert_scale=int(data.get('likert_scale', 5)),
-            enable_logging=data.get('enable_logging', False)
+            enable_logging=data.get('enable_logging', False),
+            enable_neurofeedback=data.get('enable_neurofeedback', False),
+            neurofeedback_phase=int(data.get('neurofeedback_phase', 1))
         )
         
         # Reset and create new engine
@@ -172,11 +174,14 @@ def on_initialize(data):
         setup_engine_callbacks()
         
         if engine.initialize(config):
-            emit('initialized', {
+            payload = {
                 'success': True,
                 'total_trials': len(engine.trial_queue),
                 'categories': engine.categories
-            })
+            }
+            if config.enable_neurofeedback:
+                payload['neurofeedback_phase'] = config.neurofeedback_phase
+            emit('initialized', payload)
         else:
             emit('initialized', {'success': False, 'error': 'Initialization failed'})
             
@@ -235,6 +240,18 @@ def on_submit_likert(data):
         rating = int(data.get('rating', 3))
         engine.submit_likert(rating)
         emit('likert_submitted', {'rating': rating})
+
+
+@socketio.on('trial_rating')
+def on_trial_rating(data):
+    """Submit per-trial rating (Phase 1 neurofeedback)."""
+    global engine
+    if engine:
+        trial_number = int(data.get('trial_number', 0))
+        rating = int(data.get('rating', 3))
+        if 1 <= rating <= 5:
+            engine.submit_trial_rating(trial_number, rating)
+            emit('trial_rating_submitted', {'trial_number': trial_number, 'rating': rating})
 
 
 @socketio.on('get_progress')

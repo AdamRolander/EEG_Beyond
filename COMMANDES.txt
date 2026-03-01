@@ -1,0 +1,22 @@
+# Lancer l'app (Mac)
+
+# --- Perception (2 terminaux) ---
+cd /Users/constellation/Documents/EEG_Beyond/data_collection/perception
+pip3 install -r requirements.txt
+python3 lsl_bridge.py
+# Terminal 2:
+cd /Users/constellation/Documents/EEG_Beyond/data_collection/perception
+python3 app.py
+# Puis ouvrir http://localhost:3000
+
+# --- Imagery (1 terminal) ---
+cd /Users/constellation/Documents/EEG_Beyond/data_collection/imagery
+pip3 install -r requirements.txt
+python3 app.py
+# Puis ouvrir http://localhost:8080
+
+# --- Neurofeedback (squelette, 1 terminal) ---
+cd /Users/constellation/Documents/EEG_Beyond/data_collection/neurofeedback
+pip3 install -r requirements.txt
+python3 app.py
+# Puis ouvrir http://localhost:8090

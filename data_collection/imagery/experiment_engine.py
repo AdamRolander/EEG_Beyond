@@ -8,7 +8,7 @@ import random
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Any
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from threading import Thread, Event
@@ -32,6 +32,7 @@ class ExperimentState(Enum):
     PAUSED = auto()         # User paused
     BREAK = auto()          # Break between trial blocks
     LIKERT = auto()         # Waiting for Likert response
+    WAITING_TRIAL_RATING = auto()  # Phase 1 neurofeedback: waiting for 1-5 per trial
     COMPLETED = auto()      # Experiment finished
 
 
@@ -53,6 +54,9 @@ class TrialData:
     # Markers sent
     markers: List[Dict] = field(default_factory=list)
     
+    # Per-trial rating (Phase 1 neurofeedback only)
+    rating: Optional[int] = None  # 1-5
+    
     def to_dict(self) -> dict:
         return {
             "trial_number": self.trial_number,
@@ -64,7 +68,8 @@ class TrialData:
             "recording_start": self.recording_start,
             "recording_end": self.recording_end,
             "end_beep": self.end_beep,
-            "markers": self.markers
+            "markers": self.markers,
+            "rating": self.rating
         }
 
 
@@ -132,6 +137,8 @@ class ExperimentEngine:
         # Threading
         self._stop_event = Event()
         self._pause_event = Event()
+        self._trial_rating_event = Event()  # Set when Phase 1 rating received
+        self._trial_rating_value: Optional[int] = None
         self._trial_thread: Optional[Thread] = None
         
         # Callbacks for UI updates
@@ -237,6 +244,7 @@ class ExperimentEngine:
         
         self._stop_event.clear()
         self._pause_event.clear()
+        self._trial_rating_event.clear()
         
         # Send experiment start marker
         self._log_marker(*self.lsl.send_marker(MarkerCode.EXP_START))
@@ -294,6 +302,16 @@ class ExperimentEngine:
         self._emit_state_change()
         print("Experiment stopped")
     
+    def submit_trial_rating(self, trial_number: int, rating: int):
+        """Submit per-trial rating (Phase 1 neurofeedback). Rating 1-5. Sends to LSL and stores in trial."""
+        if self.state == ExperimentState.WAITING_TRIAL_RATING and 1 <= rating <= 5:
+            if self.current_trial and self.current_trial.trial_number == trial_number:
+                self.current_trial.rating = rating
+            if self.lsl:
+                self.lsl.send_trial_rating(trial_number, rating)
+            self._trial_rating_value = rating
+            self._trial_rating_event.set()
+    
     def submit_likert(self, rating: int):
         """Submit a Likert scale response."""
         if self.state == ExperimentState.LIKERT:
@@ -344,6 +362,22 @@ class ExperimentEngine:
             # Run trial
             category = self.trial_queue[self.current_trial_index]
             self._run_single_trial(category, audio_folder, marker_base)
+            
+            # Phase 1 neurofeedback: wait for per-trial rating (1-5) before continuing
+            if (self.config.enable_neurofeedback and getattr(self.config, 'neurofeedback_phase', 1) == 1):
+                self.state = ExperimentState.WAITING_TRIAL_RATING
+                self._emit_state_change()
+                self._trial_rating_event.clear()
+                self._trial_rating_value = None
+                # Wait up to 30 s for rating; check stop every 0.05 s
+                waited = 0.0
+                while not self._trial_rating_event.is_set() and waited < 30.0:
+                    if self._stop_event.is_set():
+                        break
+                    time.sleep(0.05)
+                    waited += 0.05
+                self.state = ExperimentState.RUNNING
+                self._emit_state_change()
             
             self.current_trial_index += 1
             self.trials_since_break += 1
@@ -462,6 +496,14 @@ class ExperimentEngine:
         
         if self.on_break_start:
             self.on_break_start(self.current_trial_index, len(self.trial_queue))
+        
+        # Persist session log at end of each block (robust to crash)
+        if self.config.enable_logging and self.session_log:
+            try:
+                self.session_log.save()
+                print(f"[Session] Log saved at end of block (trial {self.current_trial_index})")
+            except Exception as e:
+                print(f"[Session] Failed to save log at block end: {e}")
     
     def _precise_sleep(self, duration_seconds: float):
         """

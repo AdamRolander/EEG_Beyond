@@ -99,9 +99,9 @@ class ExperimentConfig:
     experiment_type: str = "colors"
     
     # Timing (all in milliseconds)
-    visualization_duration_ms: int = 3000
+    visualization_duration_ms: int = 4000
     pre_recording_buffer_ms: int = 500
-    inter_trial_gap_ms: int = 1000
+    inter_trial_gap_ms: int = 5000
     
     # Trial structure
     trials_per_category: int = 10
@@ -116,6 +116,8 @@ class ExperimentConfig:
     enable_likert: bool = True
     likert_scale: int = 5  # 3 or 5
     enable_logging: bool = False  # Off by default
+    enable_neurofeedback: bool = False  # Fruits only
+    neurofeedback_phase: int = 1  # 1 = collect ratings per trial, 2 = real-time feedback
     
     # LSL
     lsl_stream_name: str = "ImageryMarkers"
@@ -135,6 +137,8 @@ class ExperimentConfig:
             "enable_likert": self.enable_likert,
             "likert_scale": self.likert_scale,
             "enable_logging": self.enable_logging,
+            "enable_neurofeedback": self.enable_neurofeedback,
+            "neurofeedback_phase": self.neurofeedback_phase,
             "lsl_stream_name": self.lsl_stream_name,
         }
     

@@ -27,6 +27,7 @@ class LSLBridge:
         self.source_id = source_id
         self.outlet: Optional[object] = None
         self.string_outlet: Optional[object] = None
+        self.rating_outlet: Optional[object] = None  # Trial ratings (trial_number, rating 1-5)
         self._connected = False
         
     def connect(self) -> bool:
@@ -59,8 +60,25 @@ class LSLBridge:
             )
             self.string_outlet = StreamOutlet(info_string)
             
+            # Trial ratings stream (Phase 1 neurofeedback): [trial_number, rating 1-5]
+            info_rating = StreamInfo(
+                name="ImageryTrialRatings",
+                type='Markers',
+                channel_count=2,
+                nominal_srate=0,
+                channel_format='int32',
+                source_id=f"{self.source_id}_ratings"
+            )
+            desc = info_rating.desc()
+            channels = desc.append_child("channels")
+            ch1 = channels.append_child("channel")
+            ch1.append_child_value("label", "trial_number")
+            ch2 = channels.append_child("channel")
+            ch2.append_child_value("label", "rating")
+            self.rating_outlet = StreamOutlet(info_rating)
+            
             self._connected = True
-            print(f"LSL outlets created: {self.stream_name}")
+            print(f"LSL outlets created: {self.stream_name}, ImageryTrialRatings")
             return True
             
         except Exception as e:
@@ -72,6 +90,7 @@ class LSLBridge:
         """Clean up LSL outlets."""
         self.outlet = None
         self.string_outlet = None
+        self.rating_outlet = None
         self._connected = False
         print("LSL outlets closed")
     
@@ -137,6 +156,23 @@ class LSLBridge:
         code = MarkerCode.LIKERT_1 + (rating - 1)
         string_marker = f"LIKERT_{rating}"
         return self.send_marker(code, string_marker)
+    
+    def send_trial_rating(self, trial_number: int, rating: int) -> Optional[float]:
+        """
+        Send per-trial rating (Phase 1 neurofeedback) to LSL.
+        Stream: ImageryTrialRatings, 2 channels: trial_number, rating (1-5).
+        Returns LSL timestamp or None if not connected.
+        """
+        if not self._connected or not self.rating_outlet:
+            return None
+        try:
+            ts = self.get_timestamp()
+            self.rating_outlet.push_sample([trial_number, rating])
+            print(f"[{ts:.3f}] LSL TrialRating: trial={trial_number} rating={rating}")
+            return ts
+        except Exception as e:
+            print(f"LSL trial rating send error: {e}")
+            return None
 
 
 # Singleton instance for easy access

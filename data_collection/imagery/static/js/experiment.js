@@ -8,6 +8,8 @@ let socket = null;
 let experimentState = 'IDLE';
 let experimentType = 'colors';
 let selectedLikert = null;
+let neurofeedbackPhase = 1;  // 1 = collect ratings, 2 = real-time feedback
+let trialRatingKeyHandler = null;  // one-shot handler for 1-5 keys
 
 // Connect when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -45,6 +47,7 @@ function connectSocket() {
     socket.on('initialized', function(data) {
         console.log('Initialized:', data);
         if (data.success) {
+            if (data.neurofeedback_phase !== undefined) neurofeedbackPhase = data.neurofeedback_phase;
             socket.emit('start');
         } else {
             alert('Init failed: ' + data.error);
@@ -65,8 +68,16 @@ function connectSocket() {
         resetToConfig();
     });
     
+    socket.on('trial_complete', function(data) {
+        console.log('Trial complete:', data);
+        if (neurofeedbackPhase === 1) {
+            showTrialRatingPrompt(data.trial_number);
+        }
+    });
+    
     socket.on('trial_start', function(data) {
         console.log('Trial:', data);
+        hideTrialRatingPrompt();
         document.getElementById('progress-text').textContent = data.trial_number + ' / ' + data.total_trials;
         var pct = (data.trial_number / data.total_trials) * 100;
         document.getElementById('progress-bar').style.setProperty('--progress', pct + '%');
@@ -133,6 +144,7 @@ function connectSocket() {
     socket.on('experiment_complete', function(data) {
         console.log('Complete:', data);
         experimentState = 'COMPLETED';
+        hideTrialRatingPrompt();
         showPanel('complete');
         document.getElementById('session-id').textContent = data.session_id;
         document.getElementById('completed-trials').textContent = data.total_trials;
@@ -185,6 +197,7 @@ function updateUI() {
 
 function resetToConfig() {
     experimentState = 'IDLE';
+    hideTrialRatingPrompt();
     showPanel('config');
     document.getElementById('start-btn').disabled = false;
     document.getElementById('start-btn').textContent = 'Initialize & Start';
@@ -267,6 +280,8 @@ async function loadCategories(type) {
         container.innerHTML = '<p class="loading">Failed to load</p>';
     }
     
+    var nfGroup = document.getElementById('neurofeedback-group');
+    if (nfGroup) nfGroup.style.display = (type === 'fruits') ? 'block' : 'none';
     updateSummary();
 }
 
@@ -277,6 +292,34 @@ function getSelectedCategories() {
         cats.push(checkboxes[i].value);
     }
     return cats;
+}
+
+function showTrialRatingPrompt(trialNumber) {
+    var el = document.getElementById('trial-rating-prompt');
+    if (!el) return;
+    el.classList.remove('hidden');
+    function onKey(e) {
+        var key = e.key;
+        if (key >= '1' && key <= '5') {
+            var rating = parseInt(key, 10);
+            socket.emit('trial_rating', { trial_number: trialNumber, rating: rating });
+            document.removeEventListener('keydown', onKey);
+            trialRatingKeyHandler = null;
+            el.classList.add('hidden');
+        }
+    }
+    if (trialRatingKeyHandler) document.removeEventListener('keydown', trialRatingKeyHandler);
+    trialRatingKeyHandler = onKey;
+    document.addEventListener('keydown', onKey);
+}
+
+function hideTrialRatingPrompt() {
+    var el = document.getElementById('trial-rating-prompt');
+    if (el) el.classList.add('hidden');
+    if (trialRatingKeyHandler) {
+        document.removeEventListener('keydown', trialRatingKeyHandler);
+        trialRatingKeyHandler = null;
+    }
 }
 
 function updateSummary() {
@@ -355,7 +398,9 @@ function setupUI() {
             enable_end_beep: document.getElementById('enable-end-beep').checked,
             enable_likert: document.getElementById('enable-likert').checked,
             likert_scale: parseInt(document.getElementById('likert-scale').value),
-            enable_logging: document.getElementById('enable-logging') ? document.getElementById('enable-logging').checked : false
+            enable_logging: document.getElementById('enable-logging') ? document.getElementById('enable-logging').checked : false,
+            enable_neurofeedback: (experimentType === 'fruits' && document.getElementById('enable-neurofeedback')) ? document.getElementById('enable-neurofeedback').checked : false,
+            neurofeedback_phase: (experimentType === 'fruits' && document.querySelector('input[name="neurofeedback-phase"]:checked')) ? parseInt(document.querySelector('input[name="neurofeedback-phase"]:checked').value, 10) : 1
         };
         
         socket.emit('initialize', config);

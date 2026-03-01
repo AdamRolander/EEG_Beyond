@@ -36,7 +36,7 @@
                             Visualization Duration
                             <span class="unit">(ms)</span>
                         </label>
-                        <input type="number" id="visualization-duration" value="3000" min="500" step="100">
+                        <input type="number" id="visualization-duration" value="4000" min="500" step="100">
                     </div>
                     <div class="config-row">
                         <label for="pre-buffer">
@@ -50,7 +50,7 @@
                             Inter-Trial Gap
                             <span class="unit">(ms)</span>
                         </label>
-                        <input type="number" id="inter-trial-gap" value="1000" min="0" step="100">
+                        <input type="number" id="inter-trial-gap" value="5000" min="0" step="100">
                     </div>
                 </div>
 
@@ -116,6 +116,25 @@
                     </div>
                 </div>
 
+                <!-- Neurofeedback (Fruits only) -->
+                <div class="config-group config-group-neurofeedback" id="neurofeedback-group" style="display: none;">
+                    <h3>Neurofeedback</h3>
+                    <div class="config-row checkbox-row toggle-row">
+                        <label for="enable-neurofeedback">Enable neurofeedback</label>
+                        <label class="toggle-slider">
+                            <input type="checkbox" id="enable-neurofeedback">
+                            <span class="toggle-slider-track"></span>
+                        </label>
+                    </div>
+                    <div class="config-row phase-select-row" id="neurofeedback-phase-row">
+                        <label>Phase</label>
+                        <div class="phase-select">
+                            <label class="phase-option"><input type="radio" name="neurofeedback-phase" value="1" checked> Phase 1 (ratings)</label>
+                            <label class="phase-option"><input type="radio" name="neurofeedback-phase" value="2"> Phase 2 (feedback)</label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Summary -->
                 <div class="config-summary">
                     <p>Total trials: <span id="total-trials">0</span></p>
@@ -148,6 +167,9 @@
                     <div id="phase-indicator" class="phase-indicator">READY</div>
                     <div id="category-display" class="category-display"></div>
                     <div id="state-message" class="state-message"></div>
+                    <div id="trial-rating-prompt" class="trial-rating-prompt hidden">
+                        Rate last trial (1–5): press key <kbd>1</kbd>–<kbd>5</kbd>
+                    </div>
                 </div>
 
                 <!-- Controls -->
