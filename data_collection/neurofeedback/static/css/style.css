@@ -108,6 +108,147 @@ main {
     color: var(--text-muted);
 }
 
+/* Config group (same as Imagery) */
+.config-group {
+    margin-bottom: 28px;
+}
+
+.config-group h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* XDF import */
+.xdf-import-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-import {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 18px 24px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.btn-import:hover {
+    background: var(--bg-secondary);
+    border-color: var(--text-primary);
+}
+
+.btn-import:active {
+    background: var(--bg-tertiary);
+}
+
+.xdf-filename {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+    word-break: break-all;
+}
+
+.xdf-filename.loaded {
+    color: var(--text-secondary);
+}
+
+/* File box (data extracted from XDF) */
+.file-box {
+    margin-top: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.file-box.hidden {
+    display: none;
+}
+
+.file-box-error {
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    color: #c55;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.file-box-error.hidden {
+    display: none;
+}
+
+.file-box-menus {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-box-menu {
+    border-bottom: 1px solid var(--border-color);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+}
+
+.file-box-menu:last-child {
+    border-bottom: none;
+}
+
+.file-box-menu summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    list-style: none;
+    user-select: none;
+}
+
+.file-box-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.file-box-menu summary::before {
+    content: '▸ ';
+    margin-right: 6px;
+    color: var(--text-muted);
+}
+
+.file-box-menu[open] summary::before {
+    content: '▾ ';
+}
+
+.file-box-menu summary:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.file-box-content {
+    padding: 12px 16px;
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    max-height: 180px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
 /* Footer */
 footer {
     padding: 16px 24px;

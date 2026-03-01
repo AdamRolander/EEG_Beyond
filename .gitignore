@@ -1,4 +1,5 @@
 *venv/
+uploads/
 __pycache__/
 beyond_contrastive/dataset
 beyond_contrastive/outputs/checkpoints

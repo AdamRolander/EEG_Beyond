@@ -1,22 +1,33 @@
-# Lancer l'app (Mac)
+# Launch the app (Mac)
 
-# --- Perception (2 terminaux) ---
-cd /Users/constellation/Documents/EEG_Beyond/data_collection/perception
-pip3 install -r requirements.txt
-python3 lsl_bridge.py
+# Activer l'environnement virtuel (une fois par terminal)
+cd /Users/constellation/Documents/EEG_Beyond
+source .venv/bin/activate  # ou créer: python -m venv .venv
+
+# --- Lab Recorder (enregistrement XDF) ---
+open "$(brew --prefix labrecorder)/LabRecorder.app"
+
+# --- Perception (2 terminals) ---
+cd /Users/constellation/Documents/EEG_Beyond && source .venv/bin/activate
+cd data_collection/perception
+pip install -r requirements.txt
+python lsl_bridge.py
 # Terminal 2:
-cd /Users/constellation/Documents/EEG_Beyond/data_collection/perception
-python3 app.py
-# Puis ouvrir http://localhost:3000
+cd /Users/constellation/Documents/EEG_Beyond && source .venv/bin/activate
+cd data_collection/perception
+python app.py
+# Then open http://localhost:3000
 
 # --- Imagery (1 terminal) ---
-cd /Users/constellation/Documents/EEG_Beyond/data_collection/imagery
-pip3 install -r requirements.txt
-python3 app.py
-# Puis ouvrir http://localhost:8080
+cd /Users/constellation/Documents/EEG_Beyond && source .venv/bin/activate
+cd data_collection/imagery
+pip install -r requirements.txt
+python app.py
+# Then open http://localhost:8080
 
-# --- Neurofeedback (squelette, 1 terminal) ---
-cd /Users/constellation/Documents/EEG_Beyond/data_collection/neurofeedback
-pip3 install -r requirements.txt
-python3 app.py
-# Puis ouvrir http://localhost:8090
+# --- Neurofeedback (1 terminal) ---
+cd /Users/constellation/Documents/EEG_Beyond && source .venv/bin/activate
+cd data_collection/neurofeedback
+pip install -r requirements.txt
+python app.py
+# Then open http://localhost:8090

@@ -16,7 +16,37 @@
         <main>
             <section id="main-panel" class="panel">
                 <h2>Dashboard</h2>
-                <p class="placeholder">No features yet.</p>
+                <div class="config-group">
+                    <h3>Data</h3>
+                    <div class="xdf-import-row">
+                        <input type="file" id="xdf-file-input" accept=".xdf" hidden>
+                        <button type="button" id="xdf-import-btn" class="btn-import">
+                            Load XDF file
+                        </button>
+                        <p id="xdf-filename" class="xdf-filename">No file loaded</p>
+                    </div>
+                    <div id="file-box" class="file-box hidden">
+                        <p id="file-box-error" class="file-box-error hidden"></p>
+                        <div class="file-box-menus">
+                            <details class="file-box-menu" id="menu-flux">
+                                <summary>Streams</summary>
+                                <pre id="file-box-streams" class="file-box-content"></pre>
+                            </details>
+                            <details class="file-box-menu" id="menu-electrodes">
+                                <summary>Channels</summary>
+                                <pre id="file-box-channels" class="file-box-content"></pre>
+                            </details>
+                            <details class="file-box-menu" id="menu-marqueurs">
+                                <summary>Markers</summary>
+                                <pre id="file-box-markers" class="file-box-content"></pre>
+                            </details>
+                            <details class="file-box-menu" id="menu-notes">
+                                <summary>Ratings</summary>
+                                <pre id="file-box-notes" class="file-box-content"></pre>
+                            </details>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
 
@@ -24,5 +54,6 @@
             <p>Neurofeedback app — skeleton</p>
         </footer>
     </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
