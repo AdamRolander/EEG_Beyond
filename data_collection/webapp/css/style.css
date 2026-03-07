@@ -1,0 +1,441 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+  padding: 1.5rem;
+  background: #292929;
+  color: #A5A7A8;
+  min-height: 100vh;
+}
+
+main {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.app-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.05em;
+  color: #D5A84C;
+}
+
+.status-pill {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #3A3A3A;
+}
+
+.status-pill.offline {
+  background: #4B4B4B;
+  color: rgba(165, 167, 168, 0.65);
+}
+
+.status-pill.online {
+  background: #4B4B4B;
+  color: #D5A84C;
+  border-color: #D5A84C;
+}
+
+/* ── Panels ──────────────────────────────────────────────── */
+.panel {
+  background: #4B4B4B;
+  border: 1px solid #3A3A3A;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.section-heading,
+.panel-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #D5A84C;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.section-heading:first-of-type {
+  margin-top: 0;
+}
+
+.panel-text {
+  font-size: 0.9rem;
+  color: #A5A7A8;
+  margin: 0 0 1rem;
+}
+
+.hint-text {
+  font-size: 0.75rem;
+  color: rgba(165, 167, 168, 0.5);
+  margin: 0.35rem 0 0;
+}
+
+.hint-text code {
+  background: #292929;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+/* ── Forms ────────────────────────────────────────────────── */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: #D5A84C;
+  margin-bottom: 0.35rem;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: #292929;
+  color: #A5A7A8;
+  border: 1px solid #3A3A3A;
+  border-radius: 4px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #D5A84C;
+  box-shadow: 0 0 0 1px rgba(213, 168, 76, 0.3);
+}
+
+input[type="number"] {
+  max-width: 10rem;
+}
+
+.input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #A5A7A8;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.option-row.indent {
+  margin-left: 1.5rem;
+}
+
+.option-row input[type="checkbox"],
+.option-row input[type="radio"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: #D5A84C;
+  cursor: pointer;
+}
+
+.option-row select {
+  width: auto;
+  min-width: 4rem;
+  margin-left: 0.25rem;
+}
+
+/* Phase duration grid */
+.phase-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.summary-row strong {
+  color: #D5A84C;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+button {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #D5A84C;
+  color: #292929;
+  border: 1px solid #D5A84C;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #A5A7A8;
+  border: 1px solid #3A3A3A;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(75, 75, 75, 0.5);
+}
+
+/* ── Stimulus chips ──────────────────────────────────────── */
+.categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stimulus-chip {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 0.75rem;
+  background: #292929;
+  color: #A5A7A8;
+  border: 1px solid #3A3A3A;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.stimulus-chip.selected {
+  color: #D5A84C;
+  border-color: #D5A84C;
+}
+
+/* ── VR Panel ────────────────────────────────────────────── */
+.vr-session-cue {
+  width: 100px;
+  height: 120px;
+  margin: 0 auto 1.5rem;
+  position: relative;
+}
+
+.vr-cue-head {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px; height: 88px;
+  background: #292929;
+  border: 1px solid #3A3A3A;
+  border-radius: 50%;
+}
+
+.vr-cue-headset {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px; height: 52px;
+  pointer-events: none;
+  animation: vr-float 2.5s ease-in-out infinite;
+}
+
+@keyframes vr-float {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50% { transform: translate(-50%, calc(-50% - 6px)); }
+}
+
+.vr-cue-band {
+  position: absolute;
+  left: 50%; top: -2px;
+  transform: translateX(-50%);
+  width: 76px; height: 14px;
+  border: 1px solid #3A3A3A;
+  border-bottom: none;
+  border-radius: 38px 38px 0 0;
+}
+
+.vr-cue-goggles {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px; height: 28px;
+  background: #4B4B4B;
+  border: 1px solid #3A3A3A;
+  border-radius: 8px;
+}
+
+.vr-cue-lens {
+  position: absolute; top: 4px;
+  width: 34px; height: 18px;
+  background: #292929;
+  border: 1px solid #3A3A3A;
+  border-radius: 4px;
+}
+
+.vr-cue-lens-l { left: 4px; }
+.vr-cue-lens-r { right: 4px; }
+
+/* ── Progress ────────────────────────────────────────────── */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #292929;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid #3A3A3A;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #D5A84C;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: #A5A7A8;
+  min-width: 5rem;
+}
+
+.phase-indicator {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: #D5A84C;
+  margin-bottom: 0.5rem;
+}
+
+.current-stimulus {
+  font-size: 1.1rem;
+  color: #A5A7A8;
+  margin-bottom: 0.5rem;
+}
+
+.state-message {
+  font-size: 0.85rem;
+  color: rgba(165, 167, 168, 0.65);
+  margin-bottom: 1rem;
+}
+
+.footer-hint {
+  font-size: 0.7rem;
+  color: rgba(165, 167, 168, 0.5);
+  margin: 1rem 0 0;
+}
+
+/* ── Likert ──────────────────────────────────────────────── */
+.likert-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.likert-option {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #292929;
+  border: 1px solid #3A3A3A;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.likert-option:hover {
+  border-color: #D5A84C;
+}
+
+.likert-option.selected {
+  color: #D5A84C;
+  border-color: #D5A84C;
+  background: rgba(213, 168, 76, 0.1);
+}
+
+/* ── Complete ────────────────────────────────────────────── */
+.summary-lines {
+  font-size: 0.9rem;
+  color: #A5A7A8;
+  margin-bottom: 1rem;
+}
+
+.summary-lines p {
+  margin: 0.35rem 0;
+}
+
+.summary-lines span {
+  color: #D5A84C;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── Mobile ──────────────────────────────────────────────── */
+button,
+.stimulus-chip {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 600px) {
+  .phase-grid {
+    grid-template-columns: 1fr;
+  }
+}
