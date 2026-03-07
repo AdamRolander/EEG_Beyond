@@ -137,7 +137,12 @@ class VRRenderer {
     this._clear();
     this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
 
-    const mask = StimulusFactory.createMaskPlane(5, 5);
+    // Size the mask plane to overfill the FOV so no gray edges are visible
+    const dist = CONFIG.rendering.vrDistance;
+    const fovRad = (CONFIG.rendering.cameraFOV / 2) * (Math.PI / 180);
+    const h = 2 * dist * Math.tan(fovRad) * 1.5; // 50% oversized
+    const w = h * (window.innerWidth / window.innerHeight);
+    const mask = StimulusFactory.createMaskPlane(w, h);
     mask.userData.isPhaseObject = true;
     this._addToView(mask);
   }

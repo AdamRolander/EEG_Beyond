@@ -46,7 +46,7 @@ const CONFIG = {
     neutralGray:      0x808080,
     maskColor:        null,   // null = generated noise texture
     imageryColor:     0x000000,
-    shapeScale:       0.8,
+    shapeScale:       0.95,
     vrDistance:        4.0,
     ambientLight:     0.5,
     directionalLight: 0.7,
@@ -61,6 +61,7 @@ const CONFIG = {
     imageryDuration:     4000,
     restDuration:        4000,
     imageryCueDelay:      500,  // delay between audio cue and imagery "recording"
+    breakResumeDelay:    2000,  // pause after likert before next trial starts
     repetitions:           40,
     trialsUntilBreak:      10
   }

@@ -80,7 +80,7 @@ const StimulusFactory = {
   createMesh(key) {
     if (this._modelCache[key]) {
       const clone = this._deepClone(this._modelCache[key]);
-      clone.userData = { stimKey: key, rotationSpeed: 1.0 };
+      clone.userData = { stimKey: key, rotationSpeed: 1.2 };
       return clone;
     }
     // Fallback procedural
@@ -125,7 +125,7 @@ const StimulusFactory = {
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.userData = { stimKey: key, rotationSpeed: 1.0 };
+    mesh.userData = { stimKey: key, rotationSpeed: 1.2 };
     return mesh;
   },
 

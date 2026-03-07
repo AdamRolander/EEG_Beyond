@@ -135,7 +135,11 @@ class ExperimentController {
     this.trialsSinceBreak = 0;
     this.state = 'RUNNING';
     this._emit('state');
-    this.timeoutHandle = setTimeout(() => this._runTrial(), 500);
+
+    // Show neutral screen during the transition delay
+    vrRenderer.showNeutral();
+    const delay = CONFIG.defaults.breakResumeDelay || 2000;
+    this.timeoutHandle = setTimeout(() => this._runTrial(), delay);
   }
 
   // ── Trial Execution ────────────────────────────────────────
