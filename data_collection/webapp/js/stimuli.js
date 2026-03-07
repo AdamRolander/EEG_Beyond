@@ -11,18 +11,9 @@ const StimulusFactory = {
    * Try to load all GLB models. Non-fatal if missing — falls back to geometry.
    */
   async preloadModels() {
-    // GLTFLoader is not in the core three.js r128 build.
-    // We load it dynamically, and if it's not available we skip.
     if (typeof THREE.GLTFLoader === 'undefined') {
-      try {
-        // Try loading from CDN
-        await this._loadScript(
-          'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.min.js'
-        );
-      } catch (e) {
-        console.warn('[Stimuli] GLTFLoader not available, using procedural fallbacks');
-        return;
-      }
+      console.warn('[Stimuli] GLTFLoader not available, using procedural fallbacks');
+      return;
     }
 
     this._loader = new THREE.GLTFLoader();
@@ -30,21 +21,36 @@ const StimulusFactory = {
     const promises = Object.entries(CONFIG.stimuli).map(async ([key, cfg]) => {
       try {
         const gltf = await this._loadGLB(`assets/${cfg.file}`);
-        // Normalize scale: fit into a bounding sphere of radius ~shapeScale
-        const box = new THREE.Box3().setFromObject(gltf.scene);
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
+
+        const model = gltf.scene;
+
+        // 1. Scale to fit within shapeScale
+        const rawBox = new THREE.Box3().setFromObject(model);
+        const rawSize = rawBox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
+        if (maxDim === 0) {
+          console.warn(`[Stimuli] Empty model for ${key}, using fallback`);
+          return;
+        }
         const scale = (CONFIG.rendering.shapeScale * 2) / maxDim;
-        gltf.scene.scale.setScalar(scale);
+        model.scale.setScalar(scale);
 
-        // Center
-        const center = box.getCenter(new THREE.Vector3());
-        gltf.scene.position.sub(center.multiplyScalar(scale));
+        // 2. Recompute bounding box AFTER scaling, then center
+        //    Wrap in a group so the offset lives on the inner model,
+        //    and the group itself sits cleanly at (0,0,0).
+        model.updateMatrixWorld(true);
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        const center = scaledBox.getCenter(new THREE.Vector3());
 
-        this._modelCache[key] = gltf.scene;
-        console.log(`[Stimuli] Loaded GLB: ${cfg.file}`);
+        model.position.set(-center.x, -center.y, -center.z);
+
+        const wrapper = new THREE.Group();
+        wrapper.add(model);
+
+        this._modelCache[key] = wrapper;
+        console.log(`[Stimuli] Loaded GLB: ${cfg.file} (scale=${scale.toFixed(3)}, center=${center.x.toFixed(2)},${center.y.toFixed(2)},${center.z.toFixed(2)})`);
       } catch (e) {
-        console.warn(`[Stimuli] GLB not found for ${key} (${cfg.file}), will use fallback`);
+        console.warn(`[Stimuli] Failed to load ${cfg.file}, using fallback:`, e);
       }
     });
 
@@ -73,12 +79,22 @@ const StimulusFactory = {
    */
   createMesh(key) {
     if (this._modelCache[key]) {
-      const clone = this._modelCache[key].clone();
+      const clone = this._deepClone(this._modelCache[key]);
       clone.userData = { stimKey: key, rotationSpeed: 0.3 };
       return clone;
     }
     // Fallback procedural
     return this._createFallback(key);
+  },
+
+  _deepClone(obj) {
+    const clone = obj.clone();
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone();
+      }
+    });
+    return clone;
   },
 
   _createFallback(key) {

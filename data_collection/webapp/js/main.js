@@ -29,7 +29,21 @@ document.addEventListener('DOMContentLoaded', function () {
     [configPanel, vrPanel, experimentPanel, breakPanel, completePanel].forEach(p =>
       p.classList.add('hidden')
     );
-    document.getElementById(id + '-panel').classList.remove('hidden');
+
+    // 'running' = hide all panels, just show the canvas
+    if (id === 'running') {
+      document.querySelector('main').style.position = '';
+      document.querySelector('main').style.zIndex   = '';
+      return;
+    }
+
+    const panel = document.getElementById(id + '-panel');
+    panel.classList.remove('hidden');
+
+    // These panels must float above the fullscreen Three.js canvas
+    const needsOverlay = ['break', 'complete', 'vr'].includes(id);
+    document.querySelector('main').style.position = needsOverlay ? 'relative' : '';
+    document.querySelector('main').style.zIndex   = needsOverlay ? '10' : '';
   }
 
   // ── Populate stimulus checkboxes from CONFIG ───────────────
@@ -164,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
       // Browser mode — go straight to experiment
       initRenderer('browser');
-      showPanel('experiment');
+      showPanel('running');
       startExperiment();
     }
   });
@@ -214,11 +228,16 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── VR Panel ──────────────────────────────────────────────
   enterVrBtn.addEventListener('click', async function () {
     try {
+      // Render loop must be running before requesting XR session
+      wireExperimentCallbacks();
+      vrRenderer.startRenderLoop();
+
       await vrRenderer.enterVR();
-      showPanel('experiment');
-      startExperiment();
+      showPanel('running');
+      experiment.start();
     } catch (e) {
       alert('Failed to enter VR: ' + e.message);
+      console.error('[VR] Entry failed:', e);
     }
   });
 
@@ -351,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   continueBtn.addEventListener('click', function () {
     experiment.resumeFromBreak(selectedLikert);
-    showPanel('experiment');
+    showPanel('running');
     update2DOverlay('', '');
   });
 
@@ -402,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('keydown', function (e) {
     if (e.code === 'Escape') {
       e.preventDefault();
-      if (experiment.state === 'RUNNING' || experiment.state === 'PAUSED') {
+      if (['RUNNING', 'PAUSED', 'BREAK'].includes(experiment.state)) {
         experiment.stop();
         cleanupDisplay();
         showPanel('config');
@@ -421,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const enableLikert = document.getElementById('enable-likert').checked;
         if (selectedLikert !== null || !enableLikert) {
           experiment.resumeFromBreak(selectedLikert);
-          showPanel('experiment');
+          showPanel('running');
           update2DOverlay('', '');
         }
       }

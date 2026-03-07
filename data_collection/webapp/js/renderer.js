@@ -49,6 +49,12 @@ class VRRenderer {
     this.sceneGroup = new THREE.Group();
     this.scene.add(this.sceneGroup);
 
+    // For VR mode, add camera to scene and attach vrGroup now
+    if (this.mode === 'vr') {
+      this.scene.add(this.camera);
+      this.camera.add(this.vrGroup);
+    }
+
     // Lighting
     StimulusFactory.createLighting().forEach(l => this.scene.add(l));
 
@@ -60,22 +66,23 @@ class VRRenderer {
 
   async enterVR() {
     if (this.mode !== 'vr') throw new Error('Not in VR mode');
-    if (!navigator.xr) throw new Error('WebXR not supported');
+    if (!navigator.xr) throw new Error('WebXR not supported in this browser');
 
     const supported = await navigator.xr.isSessionSupported('immersive-vr');
-    if (!supported) throw new Error('VR not supported on this device');
+    if (!supported) throw new Error('Immersive VR not supported on this device');
+
+    console.log('[Renderer] Requesting XR session...');
 
     const session = await navigator.xr.requestSession('immersive-vr', {
-      optionalFeatures: ['local-floor'],
+      optionalFeatures: ['local-floor', 'bounded-floor'],
       requiredFeatures: ['local']
     });
 
-    await this.renderer.xr.setSession(session);
-    this.scene.add(this.camera);
-    this.camera.add(this.vrGroup);
     session.addEventListener('end', () => this._onVREnd());
+
+    await this.renderer.xr.setSession(session);
     this.isPresenting = true;
-    console.log('[Renderer] Entered VR');
+    console.log('[Renderer] Entered VR session');
   }
 
   exitVR() {
@@ -86,9 +93,8 @@ class VRRenderer {
   }
 
   _onVREnd() {
-    this.camera.remove(this.vrGroup);
     this.isPresenting = false;
-    console.log('[Renderer] Exited VR');
+    console.log('[Renderer] VR session ended');
   }
 
   // ── Phase display methods ──────────────────────────────────
