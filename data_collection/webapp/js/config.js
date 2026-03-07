@@ -46,8 +46,8 @@ const CONFIG = {
     neutralGray:      0x808080,
     maskColor:        null,   // null = generated noise texture
     imageryColor:     0x000000,
-    shapeScale:       1.5,
-    vrDistance:        2.5,
+    shapeScale:       0.8,
+    vrDistance:        4.0,
     ambientLight:     0.5,
     directionalLight: 0.7,
     cameraFOV:        50

@@ -39,25 +39,35 @@ class ExperimentController {
   _buildTrialQueue() {
     this.trialQueue = [];
 
-    this.config.enabledStimuli.forEach(stimKey => {
-      const stimCfg = CONFIG.stimuli[stimKey];
-      if (!stimCfg) return;
-
-      for (let r = 0; r < this.config.repetitions; r++) {
-        this.trialQueue.push({
-          key: stimKey,
-          name: stimCfg.name,
-          code: stimCfg.code,
-          file: stimCfg.file
-        });
-      }
-    });
+    const stimKeys = this.config.enabledStimuli.filter(k => CONFIG.stimuli[k]);
 
     if (this.config.randomize) {
+      // Build all trials then shuffle
+      stimKeys.forEach(stimKey => {
+        const stimCfg = CONFIG.stimuli[stimKey];
+        for (let r = 0; r < this.config.repetitions; r++) {
+          this.trialQueue.push({
+            key: stimKey, name: stimCfg.name,
+            code: stimCfg.code, file: stimCfg.file
+          });
+        }
+      });
       // Fisher-Yates shuffle
       for (let i = this.trialQueue.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [this.trialQueue[i], this.trialQueue[j]] = [this.trialQueue[j], this.trialQueue[i]];
+      }
+    } else {
+      // Interleave: cycle through classes each repetition
+      // banana, strawberry, cube, banana, strawberry, cube, ...
+      for (let r = 0; r < this.config.repetitions; r++) {
+        stimKeys.forEach(stimKey => {
+          const stimCfg = CONFIG.stimuli[stimKey];
+          this.trialQueue.push({
+            key: stimKey, name: stimCfg.name,
+            code: stimCfg.code, file: stimCfg.file
+          });
+        });
       }
     }
   }
