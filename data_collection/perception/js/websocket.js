@@ -2,13 +2,14 @@
 class LSLWebSocket {
   constructor() {
     this.socket = null;
-    this.connected = false;
+    this.ed = false;
     this.markerCount = 0;
     this.onStatusChange = null;
     this.messageQueue = [];
   }
 
   connect(url) {
+
     return new Promise((resolve, reject) => {
       try {
         this.socket = new WebSocket(url);

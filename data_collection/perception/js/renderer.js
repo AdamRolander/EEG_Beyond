@@ -89,6 +89,43 @@ class VRRenderer {
     this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
   }
 
+  showFixation() {
+    this.clearStimulus();
+    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    const armLen = 0.15;
+    const armW = 0.01;
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const hBar = new THREE.Mesh(
+      new THREE.BoxGeometry(armLen * 2, armW, armW),
+      mat
+    );
+    const vBar = new THREE.Mesh(
+      new THREE.BoxGeometry(armW, armLen * 2, armW),
+      mat
+    );
+    const cross = new THREE.Group();
+    cross.add(hBar);
+    cross.add(vBar);
+    cross.position.set(0, 0, -CONFIG.rendering.vrDistance);
+    if (this.isPresenting) {
+      this.vrContainer.add(cross);
+    } else {
+      this.scene.add(cross);
+    }
+    cross.userData.isFixation = true;
+    this.currentStimulus = cross;
+  }
+
+  showMask() {
+    this.clearStimulus();
+    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+  }
+
+  showImagery() {
+    this.clearStimulus();
+    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+  }
+
   clearStimulus() {
     if (this.currentStimulus) {
       if (this.currentStimulus.isMesh) {
@@ -96,6 +133,13 @@ class VRRenderer {
         this.vrContainer.remove(this.currentStimulus);
         this.currentStimulus.geometry?.dispose();
         this.currentStimulus.material?.dispose();
+      } else if (this.currentStimulus.isGroup && this.currentStimulus.userData.isFixation) {
+        this.scene.remove(this.currentStimulus);
+        this.vrContainer.remove(this.currentStimulus);
+        this.currentStimulus.traverse(c => {
+          if (c.geometry) c.geometry.dispose();
+          if (c.material) c.material.dispose();
+        });
       }
       this.currentStimulus = null;
     }

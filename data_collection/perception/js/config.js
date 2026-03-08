@@ -66,7 +66,7 @@ const CONFIG = {
     stimulusDuration:  3000,
     isiDuration:       1000,
     repetitions:       3,
-    trialsUntilBreak:  15,
+    trialsUntilBreak:  8,
     rotationSpeed:     0.5
   }
 };

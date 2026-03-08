@@ -76,6 +76,35 @@ document.addEventListener('DOMContentLoaded', function () {
     return Array.from(checkboxes).map(cb => cb.value);
   }
 
+  function escapeCSVField(val) {
+    const s = String(val == null ? '' : val);
+    if (/[",\r\n]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function exportLikertCSV(sessionId, likertRecords) {
+    const headers = ['Session ID', 'Trial Index', 'Timestamp', 'Stimulus Key', 'Stimulus Code', 'Stimulus Type', 'Rating'];
+    const rows = likertRecords.map(r => [
+      escapeCSVField(r.sessionId),
+      escapeCSVField(r.trialIndex),
+      escapeCSVField(r.timestamp),
+      escapeCSVField(r.stimulusKey),
+      escapeCSVField(r.stimulusCode),
+      escapeCSVField(r.stimulusType),
+      escapeCSVField(r.rating)
+    ].join(','));
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'likert_ratings_' + sessionId + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function updateSummary() {
     const selected = getSelectedStimuli();
     const reps = parseInt(document.getElementById('repetitions').value) || 0;
@@ -104,6 +133,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('enable-likert').addEventListener('change', function () {
     document.getElementById('likert-scale-row').style.display = this.checked ? 'flex' : 'none';
+  });
+
+  document.getElementById('enable-phase-durations').addEventListener('change', function () {
+    const row = document.getElementById('phase-durations-row');
+    row.classList.toggle('hidden', !this.checked);
   });
 
   // =================================================================
@@ -158,6 +192,15 @@ document.addEventListener('DOMContentLoaded', function () {
       likertScale:       parseInt(document.getElementById('likert-scale').value)
     };
 
+    if (document.getElementById('enable-phase-durations').checked) {
+      config.usePhaseDurations = true;
+      config.fixationDuration = parseInt(document.getElementById('phase-fixation-duration').value) || 0;
+      config.phaseStimulusDuration = parseInt(document.getElementById('phase-stimulus-duration').value) || 0;
+      config.maskDuration = parseInt(document.getElementById('phase-mask-duration').value) || 0;
+      config.imageryDuration = parseInt(document.getElementById('phase-imagery-duration').value) || 0;
+      config.restDuration = parseInt(document.getElementById('phase-rest-duration').value) || 0;
+    }
+
     experiment.initialize(config);
 
     const container = document.createElement('div');
@@ -203,6 +246,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('completed-trials').textContent = data.totalTrials;
         document.getElementById('markers-sent').textContent = data.markersSent;
         showPanel('complete');
+        if (data.likertRecords && data.likertRecords.length > 0) {
+          exportLikertCSV(data.sessionId, data.likertRecords);
+        }
       };
 
       vrRenderer.startRenderLoop();

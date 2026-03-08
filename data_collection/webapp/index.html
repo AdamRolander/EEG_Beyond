@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perception–Imagery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main>
+    <!-- 1) CONFIG PANEL -->
+    <section id="config-panel" class="panel">
+      <header class="app-header">
+        <h1 class="app-title">PERCEPTION–IMAGERY</h1>
+        <div id="connection-status" class="status-pill offline">OFFLINE</div>
+      </header>
+
+      <h2 class="section-heading">LSL CONNECTION</h2>
+
+      <div class="form-group">
+        <label class="form-label" for="bridge-url">BRIDGE URL</label>
+        <div class="input-row">
+          <input type="text" id="bridge-url" value="ws://localhost:8765">
+          <button type="button" id="connect-btn" class="btn-primary">CONNECT TO LSL BRIDGE</button>
+        </div>
+      </div>
+
+      <h2 class="section-heading">EXPERIMENT PROTOCOL</h2>
+
+      <div class="form-group">
+        <label class="form-label">STIMULI</label>
+        <div id="stimuli-container" class="categories-grid"></div>
+        <p class="hint-text">GLB models loaded from <code>assets/</code> folder</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="repetitions">TRIALS PER STIMULUS</label>
+        <input type="number" id="repetitions" value="40" min="1" max="200">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="trials-until-break">TRIALS BETWEEN BREAKS</label>
+        <input type="number" id="trials-until-break" value="10" min="1" max="100">
+      </div>
+
+      <h2 class="section-heading">PHASE DURATIONS (MS)</h2>
+
+      <div class="phase-grid">
+        <div class="form-group">
+          <label class="form-label" for="fixation-duration">FIXATION CROSS</label>
+          <input type="number" id="fixation-duration" value="3000" min="0" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="perception-duration">PERCEPTION</label>
+          <input type="number" id="perception-duration" value="4000" min="500" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="mask-duration">MASK</label>
+          <input type="number" id="mask-duration" value="2000" min="0" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="imagery-duration">IMAGERY</label>
+          <input type="number" id="imagery-duration" value="4000" min="500" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="rest-duration">REST</label>
+          <input type="number" id="rest-duration" value="4000" min="500" step="500">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="imagery-cue-delay">IMAGERY CUE→RECORD DELAY</label>
+          <input type="number" id="imagery-cue-delay" value="500" min="0" step="100">
+        </div>
+      </div>
+
+      <h2 class="section-heading">OPTIONS</h2>
+
+      <div class="form-group">
+        <label class="option-row">
+          <input type="checkbox" id="randomize-order" checked>
+          <span>Randomize trial order</span>
+        </label>
+        <label class="option-row">
+          <input type="checkbox" id="enable-audio-cue" checked>
+          <span>Play audio cue before imagery</span>
+        </label>
+        <div id="audio-cue-type-row" class="option-row indent">
+          <label class="form-label" for="audio-cue-type">CUE TYPE</label>
+          <select id="audio-cue-type">
+            <option value="beep" selected>Beep tone</option>
+            <option value="name">Speak stimulus name</option>
+          </select>
+        </div>
+        <label class="option-row">
+          <input type="checkbox" id="enable-likert" checked>
+          <span>Likert scale during breaks</span>
+        </label>
+        <div id="likert-scale-row" class="option-row indent">
+          <label class="form-label" for="likert-scale">SCALE</label>
+          <select id="likert-scale">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+          </select>
+        </div>
+      </div>
+
+      <h2 class="section-heading">DISPLAY MODE</h2>
+
+      <div class="form-group">
+        <label class="option-row">
+          <input type="radio" name="display-mode" id="mode-browser" value="browser" checked>
+          <span>Browser (2D fullscreen)</span>
+        </label>
+        <label class="option-row">
+          <input type="radio" name="display-mode" id="mode-vr" value="vr">
+          <span>VR headset (WebXR immersive)</span>
+        </label>
+      </div>
+
+      <div class="form-group summary-row">
+        <span>Total trials: <strong id="total-trials">0</strong></span>
+        <span>Estimated duration: <strong id="estimated-duration">0</strong> min</span>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="start-btn" class="btn-primary" disabled>CONNECT TO LSL BRIDGE FIRST</button>
+      </div>
+    </section>
+
+    <!-- 2) VR READY PANEL -->
+    <section id="vr-panel" class="panel hidden">
+      <div class="vr-session-cue" aria-hidden="true">
+        <div class="vr-cue-head"></div>
+        <div class="vr-cue-headset">
+          <div class="vr-cue-band"></div>
+          <div class="vr-cue-goggles">
+            <span class="vr-cue-lens vr-cue-lens-l"></span>
+            <span class="vr-cue-lens vr-cue-lens-r"></span>
+          </div>
+        </div>
+      </div>
+      <h2 class="panel-title">READY FOR VR</h2>
+      <p class="panel-text">Put on your headset and click Enter VR when ready.</p>
+      <div class="actions">
+        <button type="button" id="enter-vr-btn" class="btn-primary">ENTER VR</button>
+        <button type="button" id="cancel-vr-btn" class="btn-secondary">CANCEL</button>
+      </div>
+    </section>
+
+    <!-- 3) EXPERIMENT PANEL (monitor view) -->
+    <section id="experiment-panel" class="panel hidden">
+      <div class="progress-row">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <span id="progress-text" class="progress-text">0 / 0</span>
+      </div>
+      <div id="phase-indicator" class="phase-indicator">WAITING</div>
+      <div id="current-stimulus" class="current-stimulus">—</div>
+      <div id="state-message" class="state-message">—</div>
+      <div class="actions">
+        <button type="button" id="pause-btn" class="btn-secondary">PAUSE (SPACE)</button>
+        <button type="button" id="stop-btn" class="btn-primary">STOP EXPERIMENT</button>
+      </div>
+      <p class="footer-hint">PRESS SPACE TO PAUSE &middot; ESC TO STOP</p>
+    </section>
+
+    <!-- 4) BREAK PANEL -->
+    <section id="break-panel" class="panel hidden">
+      <h2 class="panel-title">BREAK TIME</h2>
+      <p id="break-progress" class="panel-text">COMPLETED: 0 / 0 TRIALS</p>
+      <div id="likert-container" class="form-group">
+        <label class="form-label">HOW VIVID WAS YOUR IMAGERY? (1–<span id="likert-max">5</span>)</label>
+        <div id="likert-options" class="likert-options"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="continue-btn" class="btn-primary" disabled>SELECT RATING TO CONTINUE</button>
+      </div>
+    </section>
+
+    <!-- 5) COMPLETE PANEL -->
+    <section id="complete-panel" class="panel hidden">
+      <h2 class="panel-title">EXPERIMENT COMPLETE</h2>
+      <div class="summary-lines">
+        <p>Session ID: <span id="session-id">—</span></p>
+        <p>Total trials: <span id="completed-trials">—</span></p>
+        <p>Markers sent: <span id="markers-sent">—</span></p>
+      </div>
+      <div class="actions">
+        <button type="button" id="download-csv-btn" class="btn-secondary">DOWNLOAD LIKERT CSV</button>
+        <button type="button" id="restart-btn" class="btn-primary">NEW SESSION</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Fullscreen stimulus canvas (hidden until experiment starts) -->
+  <div id="stimulus-display" class="stimulus-display hidden"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/stimuli.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/experiment.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

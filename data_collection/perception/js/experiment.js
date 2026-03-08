@@ -9,6 +9,8 @@ class ExperimentController {
     this.stimulusOnsetTime = null;
     this.timeoutHandle = null;
     this.sessionId = null;
+    this.likertRecords = [];
+    this.breakContext = null;
 
     this.onStateChange = null;
     this.onTrialStart = null;
@@ -20,6 +22,8 @@ class ExperimentController {
   initialize(config) {
     this.config = config;
     this.sessionId = new Date().toISOString().replace(/[:.]/g, '-');
+    this.likertRecords = [];
+    this.breakContext = null;
     this.buildTrialQueue();
     this.currentTrialIndex = 0;
     this.trialsSinceBreak = 0;
@@ -85,9 +89,10 @@ class ExperimentController {
   }
 
   scheduleNextTrial() {
+    const restMs = this.config.usePhaseDurations ? this.config.restDuration : this.config.isiDuration;
     this.timeoutHandle = setTimeout(() => {
       this.runTrial();
-    }, this.config.isiDuration);
+    }, restMs);
   }
 
   async runTrial() {
@@ -114,6 +119,70 @@ class ExperimentController {
       trialNumber: this.currentTrialIndex + 1,
       stimulusCode: trial.code
     });
+
+    if (this.config.usePhaseDurations) {
+      this.runPhaseDurationTrial(trial);
+    } else {
+      this.runLegacyTrial(trial);
+    }
+  }
+
+  runPhaseDurationTrial(trial) {
+    if (this.state !== 'RUNNING') return;
+
+    const runFixation = () => {
+      if (this.state !== 'RUNNING') return;
+      vrRenderer.showFixation();
+      if (this.onPhaseChange) this.onPhaseChange('fixation', '');
+      this.timeoutHandle = setTimeout(runPerception, this.config.fixationDuration);
+    };
+
+    const runPerception = () => {
+      if (this.state !== 'RUNNING') return;
+      vrRenderer.showStimulus(trial);
+      this.stimulusOnsetTime = performance.now();
+      lslBridge.sendMarker(CONFIG.markerCodes.STIM_ONSET, {
+        trialNumber: this.currentTrialIndex + 1,
+        stimulusCode: trial.code,
+        stimulusMarker: CONFIG.markerCodes[trial.code] || 0
+      });
+      if (this.onPhaseChange) this.onPhaseChange('stimulus', trial.key);
+      this.timeoutHandle = setTimeout(runMask, this.config.phaseStimulusDuration);
+    };
+
+    const runMask = () => {
+      if (this.state !== 'RUNNING') return;
+      lslBridge.sendMarker(CONFIG.markerCodes.STIM_OFFSET, {
+        trialNumber: this.currentTrialIndex + 1,
+        stimulusCode: trial.code,
+        actualDuration: performance.now() - this.stimulusOnsetTime
+      });
+      vrRenderer.showMask();
+      if (this.onPhaseChange) this.onPhaseChange('mask', '');
+      this.timeoutHandle = setTimeout(runImagery, this.config.maskDuration);
+    };
+
+    const runImagery = () => {
+      if (this.state !== 'RUNNING') return;
+      vrRenderer.showImagery();
+      if (this.onPhaseChange) this.onPhaseChange('imagery', '');
+      this.timeoutHandle = setTimeout(runRest, this.config.imageryDuration);
+    };
+
+    const runRest = () => {
+      if (this.state !== 'RUNNING') return;
+      vrRenderer.showISI();
+      if (this.onPhaseChange) this.onPhaseChange('isi', '');
+      this.currentTrialIndex++;
+      this.trialsSinceBreak++;
+      this.scheduleNextTrial();
+    };
+
+    runFixation();
+  }
+
+  runLegacyTrial(trial) {
+    if (this.state !== 'RUNNING') return;
 
     vrRenderer.showStimulus(trial);
     this.stimulusOnsetTime = performance.now();
@@ -159,6 +228,10 @@ class ExperimentController {
 
   startBreak() {
     this.state = 'BREAK';
+    this.breakContext = {
+      trialIndex: this.currentTrialIndex,
+      stimulus: this.currentTrialIndex > 0 ? this.trialQueue[this.currentTrialIndex - 1] : null
+    };
     this.emitStateChange();
     lslBridge.sendMarker(CONFIG.markerCodes.BREAK_START, {
       trialsCompleted: this.currentTrialIndex
@@ -171,6 +244,18 @@ class ExperimentController {
   resumeFromBreak(likertRating = null) {
     if (likertRating !== null) {
       lslBridge.sendMarker(CONFIG.markerCodes.LIKERT_BASE + likertRating, { rating: likertRating });
+    }
+    if (this.breakContext) {
+      this.likertRecords.push({
+        sessionId: this.sessionId,
+        trialIndex: this.breakContext.trialIndex,
+        timestamp: new Date().toISOString(),
+        stimulusKey: this.breakContext.stimulus ? this.breakContext.stimulus.key : '',
+        stimulusCode: this.breakContext.stimulus ? this.breakContext.stimulus.code : '',
+        stimulusType: this.breakContext.stimulus ? this.breakContext.stimulus.type : '',
+        rating: likertRating != null ? likertRating : ''
+      });
+      this.breakContext = null;
     }
     lslBridge.sendMarker(CONFIG.markerCodes.BREAK_END);
     this.trialsSinceBreak = 0;
@@ -221,7 +306,8 @@ class ExperimentController {
       this.onComplete({
         sessionId: this.sessionId,
         totalTrials: this.trialQueue.length,
-        markersSent: lslBridge.markerCount
+        markersSent: lslBridge.markerCount,
+        likertRecords: this.likertRecords
       });
     }
   }

@@ -48,8 +48,8 @@
         <input type="number" id="repetitions" value="3" min="1" max="20">
       </div>
       <div class="form-group">
-        <label class="form-label" for="trials-until-break">TRIALS UNTIL BREAK</label>
-        <input type="number" id="trials-until-break" value="15" min="1" max="100">
+        <label class="form-label" for="trials-until-break">TRIALS BETWEEN BREAK</label>
+        <input type="number" id="trials-until-break" value="8" min="1" max="100">
       </div>
 
       <div class="form-group">
@@ -58,6 +58,35 @@
         <div class="small-actions">
           <button type="button" id="select-all-btn" class="btn-small">SELECT ALL</button>
           <button type="button" id="deselect-all-btn" class="btn-small">DESELECT ALL</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="option-row">
+          <input type="checkbox" id="enable-phase-durations">
+          <span>Use custom phase durations</span>
+        </label>
+        <div id="phase-durations-row" class="hidden">
+          <div class="form-group">
+            <label class="form-label" for="phase-fixation-duration">FIXATION DURATION (MS)</label>
+            <input type="number" id="phase-fixation-duration" value="3000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phase-stimulus-duration">STIMULUS DURATION (MS)</label>
+            <input type="number" id="phase-stimulus-duration" value="4000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phase-mask-duration">MASK DURATION (MS)</label>
+            <input type="number" id="phase-mask-duration" value="2000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phase-imagery-duration">IMAGERY DURATION (MS)</label>
+            <input type="number" id="phase-imagery-duration" value="4000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phase-rest-duration">REST DURATION (MS)</label>
+            <input type="number" id="phase-rest-duration" value="1000" min="0" step="1000">
+          </div>
         </div>
       </div>
 
