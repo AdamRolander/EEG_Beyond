@@ -293,6 +293,7 @@ class ExperimentController {
     this._emitPhase('REST', '');
 
     vrRenderer.showRest();
+    AudioCues.playBeepRest();
     lslBridge.sendMarker(CONFIG.markers.REST_ONSET, {
       trialNumber: trialNum, stimulusCode: trial.code
     });

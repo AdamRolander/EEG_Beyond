@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function () {
           update2DOverlay('', '');
           break;
         case 'REST':
-          update2DOverlay('Rest', '#999999');
+          update2DOverlay('Rest', '#ffffff');
           break;
         default:
           update2DOverlay('', '');
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     experiment.onBreakStart = (completed, total) => {
       document.getElementById('break-progress').innerHTML =
-        `COMPLETED: <span>${completed}</span> / <span>${total}</span> TRIALS`;
+        `<span>${completed}</span> / ${total} trials`;
       buildLikertScale();
       showPanel('break');
 

@@ -37,6 +37,30 @@ const AudioCues = {
   },
 
   /**
+   * Play a rounder, softer beep (e.g. for Rest phase).
+   * Lower frequency, gentle fade-in, smooth decay.
+   */
+  playBeepRest() {
+    const ctx = this._getContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const t0 = ctx.currentTime;
+    const fadeIn = 0.04;
+    const dur = 0.28;
+
+    osc.type = 'sine';
+    osc.frequency.value = 560;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(0.22, t0 + fadeIn);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  },
+
+  /**
    * Preload a TTS mp3 for a stimulus name.
    * Files should be at assets/audio/<name>.mp3  (lowercase).
    * @param {string} stimKey - e.g. 'BANANA'

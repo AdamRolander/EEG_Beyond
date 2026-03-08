@@ -32,7 +32,7 @@ class VRRenderer {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    this.scene.background = new THREE.Color(0x000000);
 
     this.camera = new THREE.PerspectiveCamera(
       CONFIG.rendering.cameraFOV,
@@ -100,11 +100,11 @@ class VRRenderer {
   // ── Phase display methods ──────────────────────────────────
 
   /**
-   * Show fixation cross (white + on gray).
+   * Show fixation cross (white + on black).
    */
   showFixation() {
     this._clear();
-    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    this.scene.background = new THREE.Color(0x000000);
 
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const armLen = 0.15, armW = 0.012;
@@ -131,16 +131,16 @@ class VRRenderer {
   }
 
   /**
-   * Show visual noise mask.
+   * Show visual noise mask (fullscreen, no visible background).
    */
   showMask() {
     this._clear();
-    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    this.scene.background = new THREE.Color(0x000000);
 
-    // Size the mask plane to overfill the FOV so no gray edges are visible
+    // Size the mask plane to fill the entire screen so no background is visible
     const dist = CONFIG.rendering.vrDistance;
     const fovRad = (CONFIG.rendering.cameraFOV / 2) * (Math.PI / 180);
-    const h = 2 * dist * Math.tan(fovRad) * 1.5; // 50% oversized
+    const h = 2 * dist * Math.tan(fovRad) * 2.2; // overfill for fullscreen coverage
     const w = h * (window.innerWidth / window.innerHeight);
     const mask = StimulusFactory.createMaskPlane(w, h);
     mask.userData.isPhaseObject = true;
@@ -156,22 +156,22 @@ class VRRenderer {
   }
 
   /**
-   * Rest phase — gray with "Rest" text (in 2D overlay; 3D just gray).
+   * Rest phase — black with "Rest" text (in 2D overlay; 3D black).
    */
   showRest() {
     this._clear();
-    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    this.scene.background = new THREE.Color(0x000000);
 
     // In browser mode the 2D overlay will show "Rest" text.
     // In VR we could add a text sprite, but keeping it simple for now.
   }
 
   /**
-   * ISI / neutral screen.
+   * ISI / neutral screen (black).
    */
   showNeutral() {
     this._clear();
-    this.scene.background = new THREE.Color(CONFIG.rendering.neutralGray);
+    this.scene.background = new THREE.Color(0x000000);
   }
 
   // ── Internal helpers ───────────────────────────────────────
