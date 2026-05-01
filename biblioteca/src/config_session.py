@@ -27,6 +27,11 @@ class EEGConfig(BaseModel):
     expected_sample_rate: Optional[float] = None
     buffer_seconds: int = 30
     simulate: bool = False
+    # If set, overrides whatever channel labels the LSL stream reports.
+    # Required for ICLabel auto-rejection to work, since the CNN needs
+    # 10-20 names (e.g. "O1", "Oz", "Pz") to compute scalp topographies.
+    # Length must equal expected_n_channels. Set to null to use stream metadata.
+    channel_labels: Optional[List[str]] = None
 
 
 # ─────────────────────────── Preprocessing ───────────────────────────────
@@ -36,6 +41,11 @@ class ICAConfig(BaseModel):
     enable: bool = True
     method: str = "picard"
     n_components: Optional[int] = None
+    # When False, ICA still runs and is saved, but no auto-rejection is
+    # attempted (ICLabel is skipped). Useful for custom montages where
+    # standard 10-20 channel positions aren't available — ICLabel was
+    # trained on standard positions and can't classify custom layouts.
+    auto_label: bool = True
     auto_label_threshold: float = 0.7
     reject_categories: List[str] = Field(default_factory=lambda: [
         "muscle artifact", "eye blink", "heart beat", "line noise", "channel noise",

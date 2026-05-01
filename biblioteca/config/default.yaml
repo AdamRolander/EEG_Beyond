@@ -22,7 +22,11 @@ subject:
 eeg:
   # Substring match against LSL stream name; "" = first EEG stream found.
   stream_name_hint: "obci_eeg1"
-  expected_n_channels: 16
+  # Currently 14 active channels. Daisy pins 7+8 are not connected yet
+  # (Cyton+Daisy has 16 input pins; 2 electrodes are wired as reference
+  # (CPz → SRB) and ground (O1 → BIAS), leaving 14 of 16 pins for recording).
+  # Bump back to 16 once the two extra electrodes arrive.
+  expected_n_channels: 14
   # OpenBCI Cyton+Daisy fixed at 250 Hz.
   expected_sample_rate: 250
   # 240 s holds the entire ICA calibration window (~3 min) in the ring
@@ -30,6 +34,31 @@ eeg:
   buffer_seconds: 240
   # If true, use the simulated inlet instead of LSL (for development).
   simulate: false
+  # Channel label override. Maps Cyton+Daisy pin order to 10-10 system
+  # names (per Yann's wiring legend). The OpenBCI GUI streams generic
+  # "Ch1".."Ch14" names — these get overridden at session startup so
+  # MNE/ICLabel can resolve scalp positions from the standard_1005 montage.
+  # Reference: CPz (wired to SRB1).  Ground/bias: O1.
+  # NOTE: 14 channels here matches expected_n_channels above. When the two
+  # additional electrodes arrive and are wired into Daisy pins 7 + 8, add
+  # their names below and bump expected_n_channels back to 16.
+  channel_labels:
+    # ── Cyton (channels 1-8) ──
+    - "PO4" # ch 1  (Cyton pin 1)
+    - "PO3" # ch 2  (Cyton pin 2)
+    - "PO6" # ch 3  (Cyton pin 3)
+    - "PO5" # ch 4  (Cyton pin 4)
+    - "PO7" # ch 5  (Cyton pin 5)
+    - "PO8" # ch 6  (Cyton pin 6)
+    - "Oz" # ch 7  (Cyton pin 7)
+    - "O2" # ch 8  (Cyton pin 8)
+    # ── Daisy (channels 9-14; pins 7 + 8 unconnected) ──
+    - "P3" # ch 9   (Daisy pin 1)
+    - "P1" # ch 10  (Daisy pin 2)
+    - "Pz" # ch 11  (Daisy pin 3)
+    - "P2" # ch 12  (Daisy pin 4)
+    - "P4" # ch 13  (Daisy pin 5)
+    - "POz" # ch 14  (Daisy pin 6)
 
 # ─── Preprocessing ───────────────────────────────────────────
 preprocessing:
@@ -43,8 +72,14 @@ preprocessing:
     method: "picard"
     # null = number of components equals number of channels.
     n_components: null
-    # mne-icalabel auto-rejects components in `reject_categories`
-    # whose confidence ≥ this threshold.
+    # ICLabel auto-classification of components into brain/eye/muscle/heart/etc.
+    # Requires resolvable scalp positions for every channel. The 16-channel
+    # montage in eeg.channel_labels uses 10-10 names that resolve in MNE's
+    # `standard_1005` montage, so this should work. If ICA Fit returns
+    # `icalabel_error` in the response, set this to false and inspect
+    # components offline in MNE.
+    auto_label: true
+    # Used only when auto_label is true:
     auto_label_threshold: 0.7
     reject_categories:
       - "muscle artifact"
@@ -96,7 +131,7 @@ phases:
   perception_block:
     trials_per_class: 30
     trials_per_block: 9 # 3/class
-    perception_duration_ms: 600 # match to config js
+    perception_duration_ms: 4000
     fixation_duration_ms: 1000
     rest_duration_ms: 2000
 
@@ -119,9 +154,9 @@ phases:
 
 # ─── Trial timing (used in acquisition / feedback / probe) ────
 trial:
-  fixation_duration_ms: 500
+  fixation_duration_ms: 1000
   audio_cue_duration_ms: 700
-  imagery_duration_ms: 3000 # match to config.js
+  imagery_duration_ms: 4000
   rest_duration_ms: 2000
 
 # ─── Block-opening anchor ────────────────────────────────────

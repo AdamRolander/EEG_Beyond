@@ -169,6 +169,7 @@ class ICACalibrator:
         n_components: Optional[int] = None,
         reject_categories: Optional[List[str]] = None,
         confidence_threshold: float = 0.7,
+        auto_label: bool = True,
     ):
         if not MNE_AVAILABLE:
             raise ImportError("mne not installed. Run: pip install mne")
@@ -180,14 +181,22 @@ class ICACalibrator:
             "muscle artifact", "eye blink", "heart beat", "line noise", "channel noise",
         ]
         self.confidence_threshold = confidence_threshold
+        self.auto_label = auto_label
 
         self.ica = None
         self.bad_components_mask: Optional[np.ndarray] = None
         self.component_labels: Optional[List[str]] = None
         self.component_confidences: Optional[List[float]] = None
 
-    def fit(self, calibration_data: np.ndarray, montage: str = "standard_1020") -> Dict:
-        """Fit ICA on (n_channels, n_samples). Data should already be bandpassed."""
+    def fit(self, calibration_data: np.ndarray, montage: str = "standard_1005") -> Dict:
+        """Fit ICA on (n_channels, n_samples). Data should already be bandpassed.
+
+        Default montage is `standard_1005` (the dense 10-10/10-05 layout) so
+        that high-density names like PO3/PO4/PO5/PO6/PO7/PO8/P1/P2/POz are
+        resolvable. The basic `standard_1020` only knows the 21 classical
+        positions and will leave dense names without coordinates, breaking
+        ICLabel's topography computation.
+        """
         info = mne.create_info(
             ch_names=self.channel_labels,
             sfreq=self.sample_rate,
@@ -200,9 +209,17 @@ class ICACalibrator:
         raw = mne.io.RawArray(calibration_data.astype(np.float64), info, verbose="ERROR")
         raw.set_eeg_reference("average", projection=False, verbose="ERROR")
 
+        # ICLabel was trained on extended-infomax decompositions, not vanilla
+        # Picard. Configuring Picard with `extended=True, ortho=False` makes
+        # it equivalent to extended infomax — recommended in mne-icalabel docs.
+        ica_fit_params: Dict = {}
+        if self.method == "picard":
+            ica_fit_params = {"ortho": False, "extended": True}
+
         self.ica = mne.preprocessing.ICA(
             n_components=self.n_components,
             method=self.method,
+            fit_params=ica_fit_params or None,
             random_state=42,
             max_iter="auto",
             verbose="ERROR",
@@ -210,7 +227,15 @@ class ICACalibrator:
         self.ica.fit(raw, verbose="ERROR")
 
         # Auto-label
-        if ICALABEL_AVAILABLE:
+        self.icalabel_error: Optional[str] = None
+        if not self.auto_label:
+            print(f"[ICA] auto_label disabled — {self.n_components} components retained "
+                  "without auto-rejection (use this with custom montages where ICLabel "
+                  "can't compute scalp topographies).")
+            self.component_labels = ["unlabeled"] * self.n_components
+            self.component_confidences = [0.0] * self.n_components
+            self.bad_components_mask = np.zeros(self.n_components, dtype=bool)
+        elif ICALABEL_AVAILABLE:
             from mne_icalabel import label_components as _label
             try:
                 result = _label(raw, self.ica, method="iclabel")
@@ -221,7 +246,15 @@ class ICACalibrator:
                     for lbl, conf in zip(self.component_labels, self.component_confidences)
                 ])
             except Exception as e:
-                print(f"[ICA] icalabel failed ({e}); no components auto-rejected.")
+                err = f"{type(e).__name__}: {e}"
+                self.icalabel_error = err
+                print(f"[ICA] icalabel failed: {err}")
+                print(f"[ICA] channel labels were: {self.channel_labels}")
+                print("[ICA] Components retained as-is (no auto-rejection). "
+                      "Most common cause: channel names not matching 10-20 "
+                      "system, so ICLabel can't compute scalp topographies. "
+                      "Set eeg.channel_labels in config/default.yaml to real "
+                      "10-20 names matching your montage.")
                 self.component_labels = ["unknown"] * self.n_components
                 self.component_confidences = [0.0] * self.n_components
                 self.bad_components_mask = np.zeros(self.n_components, dtype=bool)
@@ -238,6 +271,7 @@ class ICACalibrator:
             "confidences": self.component_confidences,
             "bad_mask": self.bad_components_mask.tolist(),
             "n_rejected": int(self.bad_components_mask.sum()),
+            "icalabel_error": self.icalabel_error,
         }
 
     def manually_set_bad(self, indices: List[int]):

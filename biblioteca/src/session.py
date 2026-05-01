@@ -182,6 +182,23 @@ class SessionManager:
             return
         self.inlet.start()
 
+        # Apply config override of channel labels (e.g. for OpenBCI GUI which
+        # streams generic "Channel_1" names — ICLabel can't classify those).
+        cfg_labels = self.config.eeg.channel_labels
+        if cfg_labels is not None:
+            if len(cfg_labels) != self.inlet.n_channels:
+                await self.send({
+                    "type": "error",
+                    "message": (
+                        f"config.eeg.channel_labels has {len(cfg_labels)} entries "
+                        f"but inlet reports {self.inlet.n_channels} channels."
+                    ),
+                })
+                return
+            print(f"[Session] Overriding inlet labels {self.inlet.channel_labels[:4]}... "
+                  f"with config labels {cfg_labels[:4]}...")
+            self.inlet.channel_labels = list(cfg_labels)
+
         # Preprocessor (built using actual inlet metadata, not just config)
         self.preprocessor = RealtimePreprocessor(
             sample_rate=self.inlet.sample_rate,
@@ -397,6 +414,7 @@ class SessionManager:
                 n_components=self.config.preprocessing.ica.n_components,
                 reject_categories=self.config.preprocessing.ica.reject_categories,
                 confidence_threshold=self.config.preprocessing.ica.auto_label_threshold,
+                auto_label=self.config.preprocessing.ica.auto_label,
             )
             result = calib.fit(filtered)
             ica_dir = self.session_dir / "ica"
