@@ -182,8 +182,13 @@ class SessionManager:
             return
         self.inlet.start()
 
-        # Apply config override of channel labels (e.g. for OpenBCI GUI which
-        # streams generic "Channel_1" names — ICLabel can't classify those).
+        # Apply config override of channel labels. Hardware (e.g. OpenBCI
+        # Cyton+Daisy) always streams its full pin count over LSL even if
+        # only some pins have electrodes wired — so the override list
+        # length must match the LSL stream, with `null` entries for
+        # floating / unused pins. We then derive `active_indices` (which
+        # rows to keep when extracting epochs) and `active_labels` (real
+        # 10-10 names that MNE / ICLabel can resolve).
         cfg_labels = self.config.eeg.channel_labels
         if cfg_labels is not None:
             if len(cfg_labels) != self.inlet.n_channels:
@@ -191,18 +196,35 @@ class SessionManager:
                     "type": "error",
                     "message": (
                         f"config.eeg.channel_labels has {len(cfg_labels)} entries "
-                        f"but inlet reports {self.inlet.n_channels} channels."
+                        f"but inlet reports {self.inlet.n_channels} channels. "
+                        f"The list length must match the LSL stream — pad with "
+                        f"`null` entries for unused / floating channels."
                     ),
                 })
                 return
-            print(f"[Session] Overriding inlet labels {self.inlet.channel_labels[:4]}... "
-                  f"with config labels {cfg_labels[:4]}...")
-            self.inlet.channel_labels = list(cfg_labels)
+            self._active_indices = [
+                i for i, lbl in enumerate(cfg_labels) if lbl is not None
+            ]
+            self._active_labels = [cfg_labels[i] for i in self._active_indices]
+            if not self._active_labels:
+                await self.send({"type": "error", "message": "all channels marked unused"})
+                return
+            n_dropped = self.inlet.n_channels - len(self._active_indices)
+            print(
+                f"[Session] Active channels: {len(self._active_labels)}/"
+                f"{self.inlet.n_channels} ({n_dropped} dropped). "
+                f"Active labels: {self._active_labels}"
+            )
+        else:
+            self._active_indices = list(range(self.inlet.n_channels))
+            self._active_labels = list(self.inlet.channel_labels)
 
-        # Preprocessor (built using actual inlet metadata, not just config)
+        n_active = len(self._active_labels)
+
+        # Preprocessor (sized to active channel count, not raw inlet count)
         self.preprocessor = RealtimePreprocessor(
             sample_rate=self.inlet.sample_rate,
-            n_channels=self.inlet.n_channels,
+            n_channels=n_active,
             bandpass=(
                 self.config.preprocessing.bandpass_low_hz,
                 self.config.preprocessing.bandpass_high_hz,
@@ -216,7 +238,7 @@ class SessionManager:
         for cls_name in self.config.class_names:
             self.cards[cls_name] = NeuralCard(
                 class_name=cls_name,
-                n_channels=self.inlet.n_channels,
+                n_channels=n_active,
                 weight_riem=self.config.card.feature_weights.riemannian,
                 weight_rqa=self.config.card.feature_weights.rqa,
                 weight_emb=self.config.card.feature_weights.embedding,
