@@ -1,0 +1,153 @@
+# ============================================================
+# Real-Time EEG Imagery Neurofeedback — default session config
+# ============================================================
+# All tunable parameters live here. Code reads from this file
+# (or an override file) and validates via Pydantic models in
+# src/config_session.py.
+# ============================================================
+
+subject:
+  id: "S001"
+  notes: ""
+
+# ─── EEG ingest ──────────────────────────────────────────────
+# Custom 16-ch headset over visual cortex.
+# Amplifier: OpenBCI Cyton+Daisy, 16 channels @ 250 Hz.
+# Reference: CPz. Ground (BIAS): O1.
+#   → O1 is electrically tied to amp ground and is NOT one of the
+#     16 recorded channels. The 16 channels are other occipital
+#     and parietal sites.
+# Software: OpenBCI GUI with LSL networking enabled.
+#   GUI default outlet: name="obci_eeg1", type="EEG".
+eeg:
+  # Substring match against LSL stream name; "" = first EEG stream found.
+  stream_name_hint: "obci_eeg1"
+  expected_n_channels: 16
+  # OpenBCI Cyton+Daisy fixed at 250 Hz.
+  expected_sample_rate: 250
+  # 240 s holds the entire ICA calibration window (~3 min) in the ring
+  # buffer; cheap (~6 MB RAM at 16 ch × 250 Hz).
+  buffer_seconds: 240
+  # If true, use the simulated inlet instead of LSL (for development).
+  simulate: false
+
+# ─── Preprocessing ───────────────────────────────────────────
+preprocessing:
+  bandpass_low_hz: 1.0
+  bandpass_high_hz: 40.0
+  # 60 Hz for US line noise; add 50.0 if running in EU.
+  notch_freqs_hz: [60.0]
+  car: true
+  ica:
+    enable: true
+    method: "picard"
+    # null = number of components equals number of channels.
+    n_components: null
+    # mne-icalabel auto-rejects components in `reject_categories`
+    # whose confidence ≥ this threshold.
+    auto_label_threshold: 0.7
+    reject_categories:
+      - "muscle artifact"
+      - "eye blink"
+      - "heart beat"
+      - "line noise"
+      - "channel noise"
+  # Peak-to-peak threshold (microvolts) on the cleaned epoch.
+  artifact_pp_threshold_uv: 150.0
+
+# ─── Stimulus classes ────────────────────────────────────────
+classes:
+  cat:
+    code: 100
+    audio_file: "cat.wav"
+    exemplars:
+      - "cat/1.png"
+      - "cat/2.png"
+      - "cat/3.png"
+      - "cat/4.png"
+      - "cat/5.png"
+  wrench:
+    code: 101
+    audio_file: "wrench.wav"
+    exemplars:
+      - "wrench/1.png"
+      - "wrench/2.png"
+      - "wrench/3.png"
+      - "wrench/4.png"
+      - "wrench/5.png"
+  house:
+    code: 102
+    audio_file: "house.wav"
+    exemplars:
+      - "house/1.png"
+      - "house/2.png"
+      - "house/3.png"
+      - "house/4.png"
+      - "house/5.png"
+
+# ─── Phase parameters ────────────────────────────────────────
+phases:
+  ica_calibration:
+    eyes_open_seconds: 60
+    eyes_closed_seconds: 60
+    blink_seconds: 30
+    jaw_clench_seconds: 30
+
+  perception_block:
+    trials_per_class: 30
+    trials_per_block: 9 # 3/class
+    perception_duration_ms: 600 # match to config js
+    fixation_duration_ms: 1000
+    rest_duration_ms: 2000
+
+  acquisition:
+    trials_per_block: 9 # 3/class, sampled without replacement
+    threshold_high_quality_per_class: 30
+    block_likert_min: 4
+    exclude_flagged_bad: true
+    upweight_flagged_best: 2.0
+    # Hard cap so the phase doesn't run forever if subject can't reach threshold.
+    max_blocks: 25
+
+  feedback:
+    n_blocks: 6 # 9 trials/block × 6 blocks = 54 trials
+    n_trials_per_block: 9
+
+  probe:
+    n_blocks: 6 # held-out evaluation, headline H1
+    n_trials_per_block: 9
+
+# ─── Trial timing (used in acquisition / feedback / probe) ────
+trial:
+  fixation_duration_ms: 500
+  audio_cue_duration_ms: 700
+  imagery_duration_ms: 3000 # match to config.js
+  rest_duration_ms: 2000
+
+# ─── Block-opening anchor ────────────────────────────────────
+anchor:
+  enable: true
+  image_duration_ms: 2000
+  blank_between_ms: 500
+  # If true, exemplar index advances per block (block N → exemplar (N mod 5)).
+  rotate_exemplar_index: true
+
+# ─── Card construction & scoring ─────────────────────────────
+card:
+  feature_weights:
+    riemannian: 0.7
+    rqa: 0.3
+    embedding: 0.0 # V1: encoder disabled. V2 will set this.
+  # σ for s_riem = exp(-d / σ): "median" = median training distance.
+  riemannian_sigma_method: "median"
+  rqa_phase_space_dim: 3
+  # null = autodetect τ from first zero-crossing of autocorrelation.
+  rqa_tau: null
+  rqa_recurrence_threshold_pct: 0.1
+  # Imagery window relative to IMAGERY_ONSET marker, in seconds.
+  imagery_epoch_start_s: 0.0
+  imagery_epoch_end_s: 4.0
+
+# ─── Output ──────────────────────────────────────────────────
+output:
+  data_root: "data"

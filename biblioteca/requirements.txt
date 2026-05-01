@@ -1,0 +1,26 @@
+# ─── Real-time pipeline ──────────────────────────────────────
+pylsl>=1.16.0
+mne>=1.6.0
+mne-icalabel>=0.6.0
+pyriemann>=0.5
+scipy>=1.11.0
+numpy>=1.24.0,<2.0
+PyYAML>=6.0
+pydantic>=2.6.0
+
+# ─── Server ──────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+
+# ─── Offline / future encoder work ───────────────────────────
+# torch is NOT used in the V1 live loop (no encoder in the card).
+# Kept here for post-hoc analysis and the V2 within-session encoder.
+torch>=2.2.0
+
+# ─── Dev / test ──────────────────────────────────────────────
+pytest>=7.0.0
+
+gTTS
+
+python-picard>=0.7

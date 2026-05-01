@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Imagery Neurofeedback</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<div id="operator-bar">
+  <span id="title">Visual Imagery NF</span>
+  <span id="phase-display">--</span>
+  <span id="eeg-status">EEG: --</span>
+  <span id="card-progress">--</span>
+  <span id="status-text">Loading…</span>
+  <button id="btn-end-session" class="danger-btn">End Session</button>
+</div>
+
+<div id="main">
+  <aside id="operator-panel">
+    <p>Initializing…</p>
+  </aside>
+
+  <section id="subject-screen">
+    <div id="fixation-cross" hidden>+</div>
+    <img id="stimulus-image" hidden alt="" />
+    <div id="blank-screen" hidden></div>
+    <div id="instruction-text" hidden></div>
+    <div id="feedback-container" hidden>
+      <div class="bar bar-cat">
+        <span class="label">cat</span>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+      <div class="bar bar-wrench">
+        <span class="label">wrench</span>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+      <div class="bar bar-house">
+        <span class="label">house</span>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Block likert + flag modal -->
+<div id="likert-modal" hidden>
+  <div class="modal-content">
+    <h2 id="likert-block-label">Block</h2>
+
+    <p class="prompt">Rate the overall vividness of your imagery this block:</p>
+    <div class="likert-options">
+      <label><input type="radio" name="likert" value="1"> 1 — none</label>
+      <label><input type="radio" name="likert" value="2"> 2 — faint</label>
+      <label><input type="radio" name="likert" value="3"> 3 — moderate</label>
+      <label><input type="radio" name="likert" value="4"> 4 — vivid</label>
+      <label><input type="radio" name="likert" value="5"> 5 — very vivid</label>
+    </div>
+
+    <p class="prompt">Flag your best (max 2) and worst (max 2) trials this block:</p>
+    <table id="flag-table">
+      <thead>
+        <tr><th>#</th><th>class</th><th>best ★</th><th>bad ✗</th></tr>
+      </thead>
+      <tbody id="flag-table-body"></tbody>
+    </table>
+
+    <button id="btn-submit-likert">Submit & Continue</button>
+  </div>
+</div>
+
+<script type="module" src="/static/main.js"></script>
+</body>
+</html>

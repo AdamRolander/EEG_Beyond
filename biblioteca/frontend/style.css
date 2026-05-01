@@ -1,0 +1,311 @@
+/* ─── Reset ─────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Force the HTML5 `hidden` attribute to win against #id { display: flex }
+   and similar specificity-laden rules below. Without this, #likert-modal
+   and #feedback-container would be visible from page load. */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  background: #0e0e10;
+  color: #e0e0e0;
+  overflow: hidden;
+}
+
+button { font-family: inherit; }
+
+/* ─── Operator bar ─────────────────────────────────────── */
+#operator-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  background: #1a1a1d;
+  border-bottom: 1px solid #2c2c30;
+  height: 52px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#title {
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+#phase-display {
+  background: #2a2a30;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7fc8ff;
+}
+
+#eeg-status, #card-progress {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #aaa;
+}
+
+#status-text {
+  flex: 1;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.danger-btn {
+  background: #4a1f1f;
+  color: #ffaaaa;
+  border: 1px solid #6a2f2f;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.danger-btn:hover { background: #5a2a2a; }
+
+/* ─── Main split ───────────────────────────────────────── */
+#main {
+  display: flex;
+  height: calc(100vh - 52px);
+}
+
+/* ─── Operator panel ───────────────────────────────────── */
+#operator-panel {
+  width: 340px;
+  padding: 20px;
+  background: #131316;
+  border-right: 1px solid #2c2c30;
+  overflow-y: auto;
+}
+
+.op-button {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 11px 14px;
+  background: #2a2a35;
+  color: #d8d8e0;
+  border: 1px solid #3a3a45;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: background 80ms;
+}
+.op-button:hover:not(:disabled) { background: #34344a; border-color: #4a4a60; }
+.op-button:disabled {
+  background: #1c1c20;
+  color: #666;
+  cursor: not-allowed;
+  border-color: #2a2a30;
+}
+.op-button.primary {
+  background: #1c3a55;
+  color: #cfe6ff;
+  border-color: #2a5278;
+}
+.op-button.primary:hover:not(:disabled) { background: #234a6e; }
+.op-button.danger {
+  background: #4a1c1c;
+  color: #ffd0d0;
+  border-color: #6a2a2a;
+}
+
+.btn-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.btn-row .op-button { margin-bottom: 0; flex: 1; }
+
+.instruction {
+  background: #18181c;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.5;
+  border-left: 3px solid #4a4a60;
+}
+
+.active-block {
+  margin-bottom: 4px;
+  padding: 12px;
+  background: #2a1f15;
+  border-radius: 5px;
+  border-left: 3px solid #f5a623;
+}
+.active-block .instruction {
+  background: transparent;
+  border: none;
+  padding: 0 0 10px 0;
+  margin-bottom: 8px;
+}
+.panel-sep {
+  border: none;
+  border-top: 1px solid #2c2c30;
+  margin: 14px 0 16px;
+}
+
+/* ─── Subject screen ───────────────────────────────────── */
+#subject-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  position: relative;
+}
+
+#fixation-cross {
+  font-size: 72px;
+  color: #fff;
+  font-weight: 200;
+  font-family: serif;
+  user-select: none;
+}
+
+#stimulus-image {
+  max-width: 60vmin;
+  max-height: 60vmin;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+#blank-screen {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+#instruction-text {
+  font-size: 38px;
+  font-weight: 300;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 0.5px;
+  max-width: 80vw;
+  line-height: 1.4;
+  user-select: none;
+}
+
+/* ─── Feedback bars ────────────────────────────────────── */
+#feedback-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 60%;
+  max-width: 600px;
+  padding: 20px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  opacity: 0.6;
+  transition: opacity 200ms;
+}
+.bar.cued { opacity: 1; }
+
+.bar .label {
+  width: 78px;
+  text-align: right;
+  font-size: 17px;
+  font-weight: 500;
+  color: #ccc;
+}
+.bar.cued .label { color: #fff; font-weight: 700; }
+
+.bar .track {
+  flex: 1;
+  height: 30px;
+  background: #1a1a1f;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #2a2a30;
+}
+.bar .fill {
+  height: 100%;
+  width: 0%;
+  transition: width 350ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.bar-cat .fill    { background: linear-gradient(to right, #4a90e2, #6ab0f4); }
+.bar-wrench .fill { background: linear-gradient(to right, #f5a623, #f0c050); }
+.bar-house .fill  { background: linear-gradient(to right, #7ed321, #a0e040); }
+
+/* ─── Likert modal ─────────────────────────────────────── */
+#likert-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-content {
+  background: #1c1c20;
+  padding: 28px 32px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 92%;
+  max-height: 92vh;
+  overflow-y: auto;
+  border: 1px solid #2c2c30;
+}
+.modal-content h2 {
+  margin-bottom: 14px;
+  color: #fff;
+  font-weight: 600;
+}
+.modal-content .prompt {
+  margin: 18px 0 8px;
+  color: #aaa;
+  font-size: 13px;
+}
+.likert-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.likert-options label { cursor: pointer; user-select: none; }
+.likert-options input { margin-right: 6px; }
+
+#flag-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+#flag-table th, #flag-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #2a2a30;
+  text-align: left;
+}
+#flag-table th { color: #888; font-weight: 500; font-size: 12px; }
+#flag-table td:first-child { color: #888; font-family: ui-monospace, monospace; }
+#flag-table input[type="checkbox"] { transform: scale(1.2); }
+
+#btn-submit-likert {
+  width: 100%;
+  padding: 13px;
+  background: #1c3a55;
+  color: #cfe6ff;
+  border: 1px solid #2a5278;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 80ms;
+}
+#btn-submit-likert:hover { background: #234a6e; }
